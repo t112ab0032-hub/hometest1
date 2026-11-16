@@ -1,0 +1,2628 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>會計學綜合能力診斷測驗系統｜家教專屬學習分析平台</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS CDN (供教師日後匯入其他 Excel 題庫使用) -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <!-- Google Fonts: Noto Sans TC & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Noto Sans TC"', '"Inter"', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            navy: {
+              950: '#090E1A',
+              900: '#0F172A',
+              800: '#1E293B',
+              700: '#1E3A8A',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    body {
+      font-family: "Noto Sans TC", "Inter", system-ui, sans-serif;
+      background-color: #F8FAFC;
+      color: #0F172A;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* 自訂信心指數滑桿樣式 */
+    input[type="range"].confidence-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 10px;
+      border-radius: 9999px;
+      outline: none;
+      transition: background 0.15s ease;
+    }
+
+    input[type="range"].confidence-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: #FFFFFF;
+      border: 4px solid var(--slider-color, #1E3A8A);
+      box-shadow: 0 3px 10px rgba(15, 23, 42, 0.22);
+      cursor: pointer;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    input[type="range"].confidence-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.12);
+    }
+
+    input[type="range"].confidence-slider::-moz-range-thumb {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: #FFFFFF;
+      border: 4px solid var(--slider-color, #1E3A8A);
+      box-shadow: 0 3px 10px rgba(15, 23, 42, 0.22);
+      cursor: pointer;
+    }
+
+    /* 列印 / 匯出家長報告專用樣式 */
+    @media print {
+      body {
+        background: #FFFFFF !important;
+        color: #0F172A !important;
+        font-size: 12pt;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-only {
+        display: block !important;
+      }
+      .print-card {
+        box-shadow: none !important;
+        border: 1px solid #CBD5E1 !important;
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      .print-page-break {
+        page-break-before: always;
+      }
+      /* 列印時預設同時展開 Tab 1 與 Tab 2 讓家長報告完整 */
+      #report-tab-1, #report-tab-2 {
+        display: block !important;
+      }
+      #report-tab-3 {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- =====================================================================
+       全域提示訊息 Toast (取代 alert)
+  ====================================================================== -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none no-print"></div>
+
+  <!-- =====================================================================
+       畫面 1：測驗準備與開始畫面 (Setup Screen)
+  ====================================================================== -->
+  <section id="view-setup" class="flex-1 flex flex-col justify-center py-8 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl w-full mx-auto">
+      <!-- 頂部學術標題卡片 -->
+      <div class="bg-gradient-to-br from-slate-900 via-slate-900 to-blue-950 text-white rounded-3xl p-6 sm:p-10 shadow-xl border border-slate-800 relative overflow-hidden">
+        <div class="absolute -right-16 -top-16 w-64 h-64 rounded-full bg-amber-500/10 blur-2xl pointer-events-none"></div>
+        <div class="absolute -left-12 -bottom-16 w-56 h-56 rounded-full bg-blue-500/10 blur-2xl pointer-events-none"></div>
+
+        <div class="relative z-10">
+          <div class="flex flex-wrap items-center gap-2 mb-4">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-400/30">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              家教專屬學習診斷系統
+            </span>
+            <span id="setup-bank-badge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-200 border border-blue-400/30">
+              內建題庫：共 29 題｜涵蓋十大会計章節
+            </span>
+          </div>
+
+          <h1 class="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight mb-3">
+            會計學綜合能力診斷測驗系統
+          </h1>
+          <p class="text-slate-300 text-sm sm:text-base max-w-2xl leading-relaxed">
+            結合「作答正確率」、「單題思考時間」與「1%–100% 信心指數」三維度分析，精準辨識學生的觀念盲點、猜題運氣與各章節熟練度。
+          </p>
+        </div>
+      </div>
+
+      <!-- 測驗規則與核心特色卡片 -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+        <div class="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm">
+          <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-900 flex items-center justify-center mb-3">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <h3 class="font-bold text-slate-900 text-base mb-1">不限時作答・精準計時</h3>
+          <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+            無倒數計時壓力，系統會在背景自動累計每一題的實際思考秒數，找出卡關與粗心題型。
+          </p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm">
+          <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center mb-3">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+          </div>
+          <h3 class="font-bold text-slate-900 text-base mb-1">自由跳題・隨時修改</h3>
+          <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+            測驗過程中可隨時透過題號導覽列切換不同題目、標記待檢查題號，並自由修改答案。
+          </p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm">
+          <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center mb-3">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          </div>
+          <h3 class="font-bold text-slate-900 text-base mb-1">信心指數四象限診斷</h3>
+          <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+            每題填寫 1%–100% 把握度，交卷後自動產生家長溝通報告與一題一題詳解講解模式。
+          </p>
+        </div>
+      </div>
+
+      <!-- 考生資訊與操作區 -->
+      <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-sm mt-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-6">
+          <div>
+            <label for="input-student-name" class="block text-sm font-bold text-slate-700 mb-1.5">
+              學生姓名 <span class="text-slate-400 font-normal">(顯示於家長分析報告上)</span>
+            </label>
+            <input
+              id="input-student-name"
+              type="text"
+              placeholder="請輸入學生姓名（選填，預設為受測同學）"
+              class="w-full px-4 py-3 rounded-xl border border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-900 focus:border-blue-900 transition"
+            />
+          </div>
+          <div>
+            <label for="input-exam-date" class="block text-sm font-bold text-slate-700 mb-1.5">
+              測驗日期
+            </label>
+            <input
+              id="input-exam-date"
+              type="date"
+              class="w-full px-4 py-3 rounded-xl border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-900 focus:border-blue-900 transition"
+            />
+          </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pt-4 border-t border-slate-100">
+          <!-- 教師擴充：匯入其他 Excel 題庫 -->
+          <div class="flex items-center gap-2">
+            <input type="file" id="excel-file-input" accept=".xlsx,.xls" class="hidden" />
+            <button
+              type="button"
+              onclick="document.getElementById('excel-file-input').click()"
+              class="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition cursor-pointer"
+              title="支援包含「題目、選項、答案、章節、難易度」欄位的 Excel 檔"
+            >
+              <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+              匯入其他 Excel 題庫 (.xlsx)
+            </button>
+            <button
+              id="btn-reset-default-bank"
+              type="button"
+              onclick="resetToBuiltInQuestions()"
+              class="hidden px-3 py-3 rounded-xl text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition cursor-pointer"
+            >
+              恢復內建 29 題
+            </button>
+          </div>
+
+          <!-- 主要開始測驗按鈕 -->
+          <button
+            type="button"
+            onclick="startExam()"
+            class="inline-flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl text-base font-bold text-white bg-gradient-to-r from-slate-900 to-blue-900 hover:from-blue-950 hover:to-blue-800 shadow-lg shadow-blue-950/20 transition transform active:scale-[0.99] cursor-pointer"
+          >
+            <span>開始測驗</span>
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       畫面 2：互動測驗畫面 (Active Exam Interface — 無倒數、可隨時跳題)
+  ====================================================================== -->
+  <section id="view-exam" class="hidden flex-1 flex flex-col">
+    <!-- 頂部固定狀態列 -->
+    <header class="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+        <!-- 左側：測驗名稱與進度 -->
+        <div class="flex items-center gap-3 sm:gap-5">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span class="font-extrabold text-slate-900 text-sm sm:text-base">會計學診斷測驗</span>
+          </div>
+
+          <div class="hidden md:flex items-center gap-4 text-xs sm:text-sm">
+            <span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-semibold tabular-nums">
+              已作答：<strong id="exam-answered-count" class="text-blue-900">0</strong> / <span id="exam-total-count-1">29</span> 題
+            </span>
+            <span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-semibold tabular-nums">
+              已評信心：<strong id="exam-conf-count" class="text-amber-700">0</strong> / <span id="exam-total-count-2">29</span> 題
+            </span>
+          </div>
+        </div>
+
+        <!-- 右側：正計時器（無倒數）與交卷按鈕 -->
+        <div class="flex items-center gap-2.5 sm:gap-4 ml-auto">
+          <div class="flex items-center gap-2 text-xs sm:text-sm bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 tabular-nums">
+            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span class="text-slate-500 hidden sm:inline">總用時</span>
+            <span id="exam-total-timer" class="font-bold text-slate-900">00:00</span>
+            <span class="text-slate-300">|</span>
+            <span class="text-slate-500">本題</span>
+            <span id="exam-q-timer" class="font-bold text-blue-900">0 秒</span>
+          </div>
+
+          <button
+            type="button"
+            onclick="openSubmitModal()"
+            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-white bg-amber-600 hover:bg-amber-700 shadow-sm transition cursor-pointer"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span>交卷並查看報告</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 細進度條 -->
+      <div class="w-full h-1.5 bg-slate-100">
+        <div id="exam-progress-bar" class="h-full bg-gradient-to-r from-blue-900 to-emerald-500 transition-all duration-300" style="width: 0%"></div>
+      </div>
+    </header>
+
+    <!-- 測驗主體兩欄配置 -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <!-- 左側欄：題號導覽與狀態矩陣 (1-29) -->
+      <aside class="lg:col-span-4 xl:col-span-3 bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm lg:sticky lg:top-20 order-2 lg:order-1">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-blue-900" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+            題號快速切換 (點擊跳題)
+          </h2>
+          <span class="text-xs text-slate-500 tabular-nums" id="nav-mobile-summary">0/29 完成</span>
+        </div>
+
+        <!-- 題號按鈕網格 -->
+        <div id="question-nav-grid" class="grid grid-cols-6 sm:grid-cols-10 lg:grid-cols-5 gap-2 mb-4">
+          <!-- 由 JS 動態生成 -->
+        </div>
+
+        <!-- 狀態圖例 -->
+        <div class="pt-3 border-t border-slate-100 grid grid-cols-2 gap-y-2 gap-x-2 text-xs text-slate-600">
+          <div class="flex items-center gap-1.5">
+            <span class="w-3.5 h-3.5 rounded bg-emerald-50 border border-emerald-400 inline-block"></span>
+            <span>已作答＋已評信心</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="w-3.5 h-3.5 rounded bg-blue-50 border border-blue-400 inline-block"></span>
+            <span>僅選答案(未評信心)</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="w-3.5 h-3.5 rounded bg-slate-50 border border-slate-300 inline-block"></span>
+            <span>尚未作答</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="w-3.5 h-3.5 rounded bg-white border border-slate-300 relative inline-flex items-center justify-center">
+              <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+            </span>
+            <span>標記待檢查</span>
+          </div>
+        </div>
+
+        <p class="mt-3 text-[11px] text-slate-400 leading-relaxed">
+          💡 提示：測驗期間隱藏章節與難度標籤以避免影響判斷；可使用鍵盤 <kbd class="px-1 py-0.5 bg-slate-100 border rounded text-slate-600">A-D</kbd> 選答、<kbd class="px-1 py-0.5 bg-slate-100 border rounded text-slate-600">←</kbd><kbd class="px-1 py-0.5 bg-slate-100 border rounded text-slate-600">→</kbd> 換題。
+        </p>
+      </aside>
+
+      <!-- 中央主作答區 -->
+      <div class="lg:col-span-8 xl:col-span-9 flex flex-col gap-5 order-1 lg:order-2">
+        <!-- 題幹與選項卡片 -->
+        <div class="bg-white rounded-3xl p-5 sm:p-8 border border-slate-200 shadow-sm">
+          <!-- 題目標題列 -->
+          <div class="flex items-center justify-between gap-3 pb-4 mb-5 border-b border-slate-100">
+            <div class="flex items-center gap-2.5">
+              <span id="q-number-badge" class="px-3.5 py-1.5 rounded-xl bg-slate-900 text-white font-extrabold text-sm tabular-nums">
+                第 1 題 / 共 29 題
+              </span>
+              <span id="q-status-pill" class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 text-xs font-semibold">
+                尚未作答
+              </span>
+            </div>
+
+            <button
+              id="btn-toggle-flag"
+              type="button"
+              onclick="toggleFlagCurrent()"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold border transition cursor-pointer bg-white text-slate-600 border-slate-200 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"/></svg>
+              <span id="flag-btn-text">標記待檢查</span>
+            </button>
+          </div>
+
+          <!-- 題幹文字 (支援多行換行 ①②③④) -->
+          <div id="q-stem" class="text-slate-900 text-base sm:text-lg font-medium leading-relaxed whitespace-pre-line mb-6">
+            <!-- 題目內容 -->
+          </div>
+
+          <!-- 四個選項卡片 (A, B, C, D) -->
+          <div id="q-options-container" class="flex flex-col gap-3">
+            <!-- 由 JS 動態生成 A/B/C/D -->
+          </div>
+        </div>
+
+        <!-- 信心指數評估面板 (1% - 100%) -->
+        <div class="bg-white rounded-3xl p-5 sm:p-7 border border-slate-200 shadow-sm">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div>
+              <h3 class="font-extrabold text-slate-900 text-base sm:text-lg flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 inline-flex items-center justify-center text-sm">🎯</span>
+                本題信心指數評估 <span class="text-xs font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md">請務必評估 (1–100)</span>
+              </h3>
+              <p class="text-xs sm:text-sm text-slate-500 mt-0.5">
+                請誠實評估你對這題答案的把握程度，幫助老師了解你是「真懂」還是「用猜的」！
+              </p>
+            </div>
+
+            <!-- 數值直接輸入與等級徽章 -->
+            <div class="flex items-center gap-2.5 bg-slate-50 px-3.5 py-2 rounded-2xl border border-slate-200">
+              <span id="conf-tier-badge" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-200 text-slate-700">
+                尚未設定
+              </span>
+              <div class="flex items-center gap-1">
+                <input
+                  id="conf-number-input"
+                  type="number"
+                  min="1"
+                  max="100"
+                  value="50"
+                  class="w-16 text-right font-extrabold text-lg text-slate-900 bg-white border border-slate-300 rounded-lg px-2 py-1 tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-900"
+                />
+                <span class="font-bold text-slate-600">%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 1-100 互動滑桿 -->
+          <div class="my-4 px-1">
+            <input
+              id="conf-slider"
+              type="range"
+              min="1"
+              max="100"
+              step="1"
+              value="50"
+              class="confidence-slider"
+            />
+            <div class="flex justify-between text-[11px] font-semibold text-slate-400 mt-1.5 tabular-nums">
+              <span>1% 完全用猜</span>
+              <span>25%</span>
+              <span>50% 一半一半</span>
+              <span>75%</span>
+              <span>100% 絕對確定</span>
+            </div>
+          </div>
+
+          <!-- 快速點選預設按鈕 -->
+          <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-4">
+            <button type="button" onclick="setConfidence(20)" data-preset="20" class="conf-preset-btn py-2.5 px-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-rose-50 hover:border-rose-300 text-xs font-bold text-slate-700 transition cursor-pointer">
+              20% 完全用猜
+            </button>
+            <button type="button" onclick="setConfidence(40)" data-preset="40" class="conf-preset-btn py-2.5 px-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-amber-50 hover:border-amber-300 text-xs font-bold text-slate-700 transition cursor-pointer">
+              40% 不太確定
+            </button>
+            <button type="button" onclick="setConfidence(60)" data-preset="60" class="conf-preset-btn py-2.5 px-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-300 text-xs font-bold text-slate-700 transition cursor-pointer">
+              60% 有點印象
+            </button>
+            <button type="button" onclick="setConfidence(80)" data-preset="80" class="conf-preset-btn py-2.5 px-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 text-xs font-bold text-slate-700 transition cursor-pointer">
+              80% 蠻有把握
+            </button>
+            <button type="button" onclick="setConfidence(100)" data-preset="100" class="conf-preset-btn col-span-2 sm:col-span-1 py-2.5 px-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-400 text-xs font-bold text-slate-700 transition cursor-pointer">
+              100% 非常確定
+            </button>
+          </div>
+        </div>
+
+        <!-- 底部上下題導覽按鈕 -->
+        <div class="flex items-center justify-between gap-4 pb-6">
+          <button
+            id="btn-prev-q"
+            type="button"
+            onclick="goToQuestion(currentIndex - 1)"
+            class="inline-flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm bg-white text-slate-700 border border-slate-300 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+            上一題
+          </button>
+
+          <span class="text-xs font-semibold text-slate-500 hidden sm:inline">
+            可隨時點選左側題號跳題
+          </span>
+
+          <button
+            id="btn-next-q"
+            type="button"
+            onclick="handleNextOrSubmit()"
+            class="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-slate-900 text-white hover:bg-blue-900 shadow-sm transition cursor-pointer"
+          >
+            <span id="btn-next-text">下一題</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+    </main>
+  </section>
+
+  <!-- =====================================================================
+       交卷確認彈窗 (Submit Confirmation Modal — 取代 confirm())
+  ====================================================================== -->
+  <div id="submit-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 no-print">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-slate-200">
+      <div class="flex items-start gap-3.5 mb-4">
+        <div class="w-11 h-11 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <div>
+          <h3 class="text-xl font-extrabold text-slate-900">確認交卷並產生診斷報告？</h3>
+          <p class="text-sm text-slate-600 mt-1">交卷後將立即計算各章節正確率、信心盲點四象限與家長分析報告。</p>
+        </div>
+      </div>
+
+      <!-- 檢查未作答或未評信心題目 -->
+      <div id="submit-modal-warnings" class="bg-slate-50 rounded-2xl p-4 border border-slate-200 mb-5 text-sm space-y-2.5 max-h-60 overflow-y-auto">
+        <!-- 由 JS 動態填入 -->
+      </div>
+
+      <div class="flex flex-col-reverse sm:flex-row justify-end gap-2.5">
+        <button
+          type="button"
+          onclick="closeSubmitModal()"
+          class="px-5 py-2.5 rounded-xl font-bold text-sm text-slate-700 bg-slate-100 hover:bg-slate-200 transition cursor-pointer"
+        >
+          返回繼續檢查
+        </button>
+        <button
+          type="button"
+          onclick="finalizeExam()"
+          class="px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm transition cursor-pointer"
+        >
+          確認交卷，查看分析報告
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       畫面 3：交卷後總覽、家長分析報告與逐題回顧 (Post-Exam Dashboard)
+  ====================================================================== -->
+  <section id="view-results" class="hidden flex-1 flex flex-col pb-12">
+    <!-- 列印專用報告標頭 -->
+    <div class="hidden print-only max-w-6xl mx-auto w-full px-4 pt-4 pb-3 border-b-2 border-slate-900 mb-4">
+      <div class="flex justify-between items-end">
+        <div>
+          <h1 class="text-2xl font-extrabold text-slate-900">會計學學習能力與信心盲點診斷報告</h1>
+          <p class="text-sm text-slate-600 mt-1">家教專屬教學評估與家長溝通總表</p>
+        </div>
+        <div class="text-right text-sm text-slate-700">
+          <p>學生姓名：<strong id="print-student-name">受測同學</strong></p>
+          <p>測驗日期：<strong id="print-exam-date"></strong></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 頂部導覽與操作列 -->
+    <header class="bg-slate-900 text-white border-b border-slate-800 no-print">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-5">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div class="flex flex-wrap items-center gap-2 text-xs text-amber-300 font-semibold mb-1">
+              <span>📊 測驗完成診斷報告</span>
+              <span>•</span>
+              <span>學生：<strong id="res-header-student" class="text-white">受測同學</strong></span>
+              <span>•</span>
+              <span>日期：<span id="res-header-date" class="text-slate-300"></span></span>
+            </div>
+            <h1 class="text-xl sm:text-2xl font-extrabold tracking-tight">
+              會計學綜合能力與信心盲點分析報告
+            </h1>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onclick="window.print()"
+              class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-sm transition cursor-pointer"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+              列印／匯出家長報告 (PDF)
+            </button>
+            <button
+              type="button"
+              onclick="restartToSetup()"
+              class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition cursor-pointer"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              重新測驗
+            </button>
+          </div>
+        </div>
+
+        <!-- 三大功能分頁籤 (Tabs) -->
+        <nav class="flex gap-2 mt-6 overflow-x-auto pb-1">
+          <button
+            id="tab-btn-1"
+            type="button"
+            onclick="switchResultTab(1)"
+            class="px-4 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition cursor-pointer bg-white text-slate-900 shadow-sm"
+          >
+            1. 整體診斷與家長報告
+          </button>
+          <button
+            id="tab-btn-2"
+            type="button"
+            onclick="switchResultTab(2)"
+            class="px-4 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition cursor-pointer text-slate-300 hover:text-white hover:bg-slate-800"
+          >
+            2. 各章節深度細分分析
+          </button>
+          <button
+            id="tab-btn-3"
+            type="button"
+            onclick="switchResultTab(3)"
+            class="px-4 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition cursor-pointer text-slate-300 hover:text-white hover:bg-slate-800"
+          >
+            3. 一題一題回顧與講解
+          </button>
+        </nav>
+      </div>
+    </header>
+
+    <!-- ===================================================================
+         TAB 1: 整體診斷與家長報告
+    ==================================================================== -->
+    <div id="report-tab-1" class="max-w-7xl w-full mx-auto px-4 sm:px-6 pt-6 space-y-6">
+      <!-- 4 張核心 KPI 總覽卡片 -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- KPI 1: 整體答題正確率 -->
+        <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm print-card">
+          <div class="flex items-center justify-between text-xs font-bold text-slate-500 mb-2">
+            <span>整體答題正確率</span>
+            <span class="px-2 py-0.5 rounded bg-blue-50 text-blue-900">總分表現</span>
+          </div>
+          <div id="kpi-accuracy" class="text-3xl font-extrabold text-slate-900 tabular-nums">0.0%</div>
+          <p id="kpi-accuracy-sub" class="text-xs text-slate-500 mt-1.5 tabular-nums">答對 0 / 29 題</p>
+        </div>
+
+        <!-- KPI 2: 作答時間表現 -->
+        <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm print-card">
+          <div class="flex items-center justify-between text-xs font-bold text-slate-500 mb-2">
+            <span>作答時間表現</span>
+            <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700">思考節奏</span>
+          </div>
+          <div id="kpi-total-time" class="text-3xl font-extrabold text-slate-900 tabular-nums">0分0秒</div>
+          <p id="kpi-avg-time" class="text-xs text-slate-500 mt-1.5 tabular-nums">平均每題 0.0 秒</p>
+        </div>
+
+        <!-- KPI 3: 平均信心指數與校準 -->
+        <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm print-card">
+          <div class="flex items-center justify-between text-xs font-bold text-slate-500 mb-2">
+            <span>平均信心指數</span>
+            <span id="kpi-calibration-badge" class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700">自我評估精準</span>
+          </div>
+          <div id="kpi-avg-conf" class="text-3xl font-extrabold text-amber-600 tabular-nums">0.0%</div>
+          <p id="kpi-conf-sub" class="text-xs text-slate-500 mt-1.5 tabular-nums">與實際正確率差距 0.0%</p>
+        </div>
+
+        <!-- KPI 4: 高信心盲點題數 -->
+        <div class="bg-white rounded-2xl p-5 border border-rose-200 bg-rose-50/30 shadow-sm print-card">
+          <div class="flex items-center justify-between text-xs font-bold text-rose-700 mb-2">
+            <span>高信心盲點題數</span>
+            <span class="px-2 py-0.5 rounded bg-rose-100 text-rose-700">首要檢討</span>
+          </div>
+          <div id="kpi-blindspot-count" class="text-3xl font-extrabold text-rose-600 tabular-nums">0 題</div>
+          <p class="text-xs text-slate-600 mt-1.5">信心 ≥ 70% 卻答錯（觀念誤區）</p>
+        </div>
+      </div>
+
+      <!-- 給家長的學習診斷總評與後續教學建議 -->
+      <div class="bg-gradient-to-br from-slate-900 to-blue-950 text-white rounded-3xl p-6 sm:p-7 shadow-md print-card">
+        <div class="flex items-center gap-2.5 mb-4">
+          <span class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-400/30 flex items-center justify-center text-base">📋</span>
+          <div>
+            <h2 class="text-lg sm:text-xl font-extrabold">給家長的學習診斷總評與後續教學建議</h2>
+            <p class="text-xs text-slate-300">系統依據答對率、各章節落點與信心校準數據自動彙整</p>
+          </div>
+        </div>
+        <div id="parent-narrative-box" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm leading-relaxed">
+          <!-- 由 JS 動態生成 4 個結構化診斷區塊 -->
+        </div>
+      </div>
+
+      <!-- 題目難易度表現分析 (低 / 中 / 高) -->
+      <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm print-card">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5">
+          <div>
+            <h2 class="text-lg font-extrabold text-slate-900">題目難易度表現分析（低 / 中 / 高）</h2>
+            <p class="text-xs sm:text-sm text-slate-500">檢視學生在「基礎觀念題」、「一般計算題」與「跨單元綜合題」的得分與信心落差</p>
+          </div>
+          <div class="flex items-center gap-4 text-xs font-semibold">
+            <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-xs bg-blue-900 inline-block"></span>實際正確率 (%)</span>
+            <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-xs bg-amber-500 inline-block"></span>平均信心指數 (%)</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+          <!-- 左側 SVG 視覺對比圖 -->
+          <div id="difficulty-svg-container" class="lg:col-span-5 bg-slate-50 rounded-2xl p-4 border border-slate-100">
+            <!-- SVG 圖表由 JS 產生 -->
+          </div>
+
+          <!-- 右側結構化數據表 -->
+          <div class="lg:col-span-7 overflow-x-auto">
+            <table class="w-full text-left border-collapse text-sm">
+              <thead>
+                <tr class="border-b border-slate-200 text-xs font-bold text-slate-500 uppercase">
+                  <th class="py-2.5 px-3">難度等級</th>
+                  <th class="py-2.5 px-3 text-center">答對 / 題數</th>
+                  <th class="py-2.5 px-3 text-right">實際正確率</th>
+                  <th class="py-2.5 px-3 text-right">平均信心</th>
+                  <th class="py-2.5 px-3 text-right">平均耗時</th>
+                  <th class="py-2.5 px-3">學習狀態診斷</th>
+                </tr>
+              </thead>
+              <tbody id="difficulty-table-body" class="divide-y divide-slate-100 tabular-nums">
+                <!-- 由 JS 動態填入 -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 信心 × 正確率「四象限診斷矩陣」 -->
+      <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm print-card">
+        <div class="mb-5">
+          <h2 class="text-lg font-extrabold text-slate-900">信心 × 正確率「四象限學習盲點矩陣」</h2>
+          <p class="text-xs sm:text-sm text-slate-500">
+            以信心指數 <strong class="text-slate-800">70%</strong> 為分界（點擊下方題號徽章可直接跳轉至該題詳解講解）
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- 象限 1: 高信心 + 答錯 (Rose) -->
+          <div class="rounded-2xl p-5 bg-rose-50/70 border-2 border-rose-200 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between gap-2 mb-2">
+                <span class="font-extrabold text-rose-800 text-base flex items-center gap-1.5">
+                  🚨 高信心 (≥70%) ＋ 答錯【危險觀念盲點】
+                </span>
+                <span id="quad-1-count" class="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-rose-600 text-white tabular-nums">0 題</span>
+              </div>
+              <p class="text-xs text-rose-700/90 mb-3 leading-relaxed">
+                學生自認非常確定卻寫錯，代表<strong>觀念理解有誤區</strong>或<strong>掉入題目陷阱</strong>，課堂檢討第一優先！
+              </p>
+            </div>
+            <div id="quad-1-list" class="flex flex-wrap gap-1.5 pt-2 border-t border-rose-200/70">
+              <!-- 點擊可跳轉至 Tab 3 單題講解 -->
+            </div>
+          </div>
+
+          <!-- 象限 2: 高信心 + 答對 (Emerald) -->
+          <div class="rounded-2xl p-5 bg-emerald-50/70 border border-emerald-200 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between gap-2 mb-2">
+                <span class="font-extrabold text-emerald-800 text-base flex items-center gap-1.5">
+                  ✅ 高信心 (≥70%) ＋ 答對【穩固掌握區】
+                </span>
+                <span id="quad-2-count" class="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-emerald-600 text-white tabular-nums">0 題</span>
+              </div>
+              <p class="text-xs text-emerald-700/90 mb-3 leading-relaxed">
+                觀念清晰且作答有把握，屬於真正內化的核心實力，考場上最穩定的得分來源。
+              </p>
+            </div>
+            <div id="quad-2-list" class="flex flex-wrap gap-1.5 pt-2 border-t border-emerald-200/70"></div>
+          </div>
+
+          <!-- 象限 3: 低信心 + 答錯 (Slate) -->
+          <div class="rounded-2xl p-5 bg-slate-50 border border-slate-200 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between gap-2 mb-2">
+                <span class="font-extrabold text-slate-800 text-base flex items-center gap-1.5">
+                  📚 低信心 (&lt;70%) ＋ 答錯【待學知識盲區】
+                </span>
+                <span id="quad-3-count" class="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-slate-600 text-white tabular-nums">0 題</span>
+              </div>
+              <p class="text-xs text-slate-600 mb-3 leading-relaxed">
+                學生自己也知道不熟或不會算，需從基礎分錄與公式重新建立解題架構。
+              </p>
+            </div>
+            <div id="quad-3-list" class="flex flex-wrap gap-1.5 pt-2 border-t border-slate-200"></div>
+          </div>
+
+          <!-- 象限 4: 低信心 + 答對 (Amber) -->
+          <div class="rounded-2xl p-5 bg-amber-50/70 border border-amber-200 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between gap-2 mb-2">
+                <span class="font-extrabold text-amber-800 text-base flex items-center gap-1.5">
+                  🍀 低信心 (&lt;70%) ＋ 答對【幸運猜對／觀念不穩】
+                </span>
+                <span id="quad-4-count" class="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-amber-600 text-white tabular-nums">0 題</span>
+              </div>
+              <p class="text-xs text-amber-800/90 mb-3 leading-relaxed">
+                雖然這次選對，但作答時猶豫或靠猜測，下次換個問法容易失分，建議一併確認觀念。
+              </p>
+            </div>
+            <div id="quad-4-list" class="flex flex-wrap gap-1.5 pt-2 border-t border-amber-200/70"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 作答時間行為洞察 -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- 耗時最長 Top 3 -->
+        <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm print-card">
+          <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-2 mb-1">
+            <span>⏱️</span> 思考耗時最長 Top 3 題目（卡關指標）
+          </h3>
+          <p class="text-xs text-slate-500 mb-4">花費最多時間計算或猶豫的題目，反映解題速度瓶頸</p>
+          <div id="time-slowest-list" class="space-y-2.5">
+            <!-- JS 動態填入 -->
+          </div>
+        </div>
+
+        <!-- 快速作答卻答錯（粗心警示） -->
+        <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm print-card">
+          <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-2 mb-1">
+            <span>⚡</span> 快速作答 (&lt;15秒) 卻答錯（審題粗心警示）
+          </h3>
+          <p class="text-xs text-slate-500 mb-4">作答時間極短卻失分，常見於看錯「何者錯誤」、「應借/應貸」或陷阱數字</p>
+          <div id="time-careless-list" class="space-y-2.5">
+            <!-- JS 動態填入 -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================
+         TAB 2: 各章節深度細分分析
+    ==================================================================== -->
+    <div id="report-tab-2" class="hidden max-w-7xl w-full mx-auto px-4 sm:px-6 pt-6 space-y-6">
+      <!-- 章節正確率 vs 平均信心水平長條圖 -->
+      <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm print-card">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+          <div>
+            <h2 class="text-lg font-extrabold text-slate-900">十大会計章節：實際正確率 vs. 平均信心指數對照</h2>
+            <p class="text-xs sm:text-sm text-slate-500">一眼看出哪些單元「實力紮實」、哪些單元「信心過高卻失分」</p>
+          </div>
+          <div class="flex items-center gap-4 text-xs font-semibold">
+            <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-xs bg-blue-900 inline-block"></span>答對率 (%)</span>
+            <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-xs bg-amber-500 inline-block"></span>平均信心 (%)</span>
+          </div>
+        </div>
+        <div id="chapter-chart-container" class="w-full overflow-x-auto">
+          <!-- 純 SVG/HTML 水平比較圖 -->
+        </div>
+      </div>
+
+      <!-- 各章節完整細分診斷表（含低/中/高難度正確率細分） -->
+      <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm print-card">
+        <div class="mb-4">
+          <h2 class="text-lg font-extrabold text-slate-900">各章節深度細分診斷表（含難度結構拆解）</h2>
+          <p class="text-xs sm:text-sm text-slate-500">詳細列出每個單元的答對率、平均信心、信心落差、平均耗時，以及該單元內「低／中／高」難度題目的個別正確率</p>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-sm">
+            <thead>
+              <tr class="bg-slate-50 border-y border-slate-200 text-xs font-extrabold text-slate-600">
+                <th class="py-3 px-3 min-w-[180px]">會計章節單元</th>
+                <th class="py-3 px-3 min-w-[140px]">單元答對率</th>
+                <th class="py-3 px-3 text-right">平均信心</th>
+                <th class="py-3 px-3 text-right">信心落差</th>
+                <th class="py-3 px-3 text-right">平均耗時</th>
+                <th class="py-3 px-3 min-w-[230px]">各難易度正確率細分（低 / 中 / 高）</th>
+                <th class="py-3 px-3 min-w-[130px]">教學診斷建議</th>
+              </tr>
+            </thead>
+            <tbody id="chapter-detail-tbody" class="divide-y divide-slate-100 tabular-nums">
+              <!-- 由 JS 動態填入 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================
+         TAB 3: 一題一題回顧與講解模式 (1-on-1 Guided Question Review)
+    ==================================================================== -->
+    <div id="report-tab-3" class="hidden max-w-7xl w-full mx-auto px-4 sm:px-6 pt-6 space-y-5 no-print">
+      <!-- 智慧篩選與檢視模式控制列 -->
+      <div class="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <!-- 快速情境篩選按鈕 -->
+          <div class="flex flex-wrap items-center gap-2" id="review-quick-filters">
+            <button type="button" onclick="setReviewPreset('all')" data-rfilter="all" class="rfilter-btn px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-900 text-white transition cursor-pointer">
+              全部題目 (<span id="rf-count-all">29</span>)
+            </button>
+            <button type="button" onclick="setReviewPreset('wrong')" data-rfilter="wrong" class="rfilter-btn px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-rose-50 hover:text-rose-700 transition cursor-pointer">
+              ❌ 全部錯題 (<span id="rf-count-wrong">0</span>)
+            </button>
+            <button type="button" onclick="setReviewPreset('blindspot')" data-rfilter="blindspot" class="rfilter-btn px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-rose-50 hover:text-rose-700 transition cursor-pointer">
+              🚨 高信心答錯／盲點 (<span id="rf-count-blindspot">0</span>)
+            </button>
+            <button type="button" onclick="setReviewPreset('lucky')" data-rfilter="lucky" class="rfilter-btn px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-amber-50 hover:text-amber-800 transition cursor-pointer">
+              🍀 低信心答對／猜對 (<span id="rf-count-lucky">0</span>)
+            </button>
+            <button type="button" onclick="setReviewPreset('slowest')" data-rfilter="slowest" class="rfilter-btn px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-800 transition cursor-pointer">
+              ⏱️ 耗時最久 Top 5
+            </button>
+          </div>
+
+          <!-- 模式切換：逐題單題講解 vs 全卷列表 -->
+          <div class="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200">
+            <button
+              id="btn-mode-single"
+              type="button"
+              onclick="setReviewViewMode('single')"
+              class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-900 shadow-xs transition cursor-pointer"
+            >
+              逐題講解模式（大字版）
+            </button>
+            <button
+              id="btn-mode-list"
+              type="button"
+              onclick="setReviewViewMode('list')"
+              class="px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 transition cursor-pointer"
+            >
+              列表總覽模式
+            </button>
+          </div>
+        </div>
+
+        <!-- 章節與難度下拉篩選 -->
+        <div class="flex flex-wrap items-center gap-3 pt-3 border-t border-slate-100">
+          <div class="flex items-center gap-2">
+            <label for="review-chapter-select" class="text-xs font-bold text-slate-600">章節篩選：</label>
+            <select id="review-chapter-select" onchange="applyReviewFilters()" class="text-xs sm:text-sm font-semibold text-slate-800 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-900">
+              <option value="all">全部十個章節</option>
+            </select>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <label for="review-diff-select" class="text-xs font-bold text-slate-600">難度篩選：</label>
+            <select id="review-diff-select" onchange="applyReviewFilters()" class="text-xs sm:text-sm font-semibold text-slate-800 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-900">
+              <option value="all">全部難度 (低/中/高)</option>
+              <option value="低">難度：低</option>
+              <option value="中">難度：中</option>
+              <option value="高">難度：高</option>
+            </select>
+          </div>
+
+          <span id="review-match-summary" class="ml-auto text-xs font-semibold text-slate-500">
+            目前顯示 29 題
+          </span>
+        </div>
+      </div>
+
+      <!-- 逐題單題講解導覽條（僅在 single 模式顯示） -->
+      <div id="review-single-nav-bar" class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col gap-3">
+        <div class="flex items-center justify-between gap-2">
+          <button
+            id="btn-review-prev"
+            type="button"
+            onclick="stepReviewSingle(-1)"
+            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 disabled:opacity-40 transition cursor-pointer"
+          >
+            ← 上一題
+          </button>
+          <span id="review-single-counter" class="text-sm font-extrabold text-slate-900 tabular-nums">
+            講解進度：第 1 / 29 題
+          </span>
+          <button
+            id="btn-review-next"
+            type="button"
+            onclick="stepReviewSingle(1)"
+            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-slate-900 hover:bg-blue-900 text-white disabled:opacity-40 transition cursor-pointer"
+          >
+            下一題 →
+          </button>
+        </div>
+
+        <!-- 篩選結果題號快速跳轉列 -->
+        <div id="review-single-pills" class="flex flex-wrap gap-1.5 pt-2 border-t border-slate-100">
+          <!-- 由 JS 動態填入 -->
+        </div>
+      </div>
+
+      <!-- 題目詳解卡片渲染容器 -->
+      <div id="review-cards-container" class="space-y-5">
+        <!-- 由 JS 動態渲染 -->
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       JavaScript 核心資料與應用邏輯
+  ====================================================================== -->
+  <script>
+    /**
+     * 內建 29 題會計學題庫 (完整對應「家教題目.xlsx」之題目、選項、答案、章節、難易度與教師講解解析)
+     */
+    const BUILT_IN_QUESTIONS = [
+      {
+        id: 1,
+        question: "下列交易事項對當期財務報表要素影響的敘述，正確者共幾項？\n①賒購設備於超過現金折扣優惠期間後才付款，該筆付款交易分錄將導致資產減少、費損增加、負債減少\n②在期末估計應收帳款預期信用減損金額小於調整前備抵損失餘額情況下，該筆調整分錄將導致資產增加、費用減少\n③權責發生基礎下，期末調整金額為本期已耗用辦公用品，該筆調整分錄將導致資產減少、費損增加\n④本期發現前期機器折舊多計錯誤，若不考慮所得稅之影響，該筆更正分錄將導致資產增加、權益增加",
+        options: { A: "一項", B: "二項", C: "三項", D: "四項" },
+        answer: "D",
+        chapter: "七、 調整",
+        difficulty: "高",
+        explanation: "①設備現金折扣採淨額法，逾期付款借：應付設備款(負債↓)、未享折扣損失(費損↑)，貸：現金(資產↓)，正確。\n②預期信用減損迴轉，借：備抵損失(資產↑)，貸：預期信用減損迴轉利益/費用減項(費用↓)，正確。\n③記實轉虛法下期末調整已耗用部分，借：文具用品(費損↑)，貸：用品盤存(資產↓)，正確。\n④前期折舊多計更正，借：累計折舊(資產↑)，貸：追溯適用及追溯重編之影響數(權益↑)，正確。共四項。"
+      },
+      {
+        id: 2,
+        question: "企業編製財務報表時，旨在報導企業在「特定期間」內經營成果的報表為_____，而報導企業「特定日期」財務狀況的\n報表為_______？",
+        options: { A: "資產負債表 、綜合損益表", B: "綜合損益表 、資產負債表", C: "權益變動表 、資產負債表", D: "現金流量表、綜合損益表" },
+        answer: "B",
+        chapter: "一、 會計基本概念",
+        difficulty: "低",
+        explanation: "綜合損益表屬於「動態報表」，報導特定期間內的經營成果（收益與費損）；資產負債表屬於「靜態報表」，報導特定日期（時點）的財務狀況（資產、負債與權益）。"
+      },
+      {
+        id: 3,
+        question: "企業年底對還在使用的機器設備提列折舊，主要是基於下列哪些會計慣例或原則？",
+        options: { A: "配合原則、繼續經營假設", B: "重大性原則、攸關性", C: "繼續經營假設、權責發生制", D: "會計期間假設、企業個體假設" },
+        answer: "A",
+        chapter: "一、 會計基本概念",
+        difficulty: "中",
+        explanation: "假設企業將「繼續經營」不會立即清算，故資產成本無須一次認列費用，而是依「配合原則」在使用期間內逐年提列折舊，與各期創造的收益相配合。"
+      },
+      {
+        id: 4,
+        question: "完整的會計程序為？",
+        options: { A: "分錄、試算 、過帳、調整、結帳、編表", B: "分錄、過帳、試算 、調整、結帳、編表", C: "分錄 、試算、調整、過帳、編表、結帳", D: "調整、過帳、試算、結帳、分錄、編表" },
+        answer: "B",
+        chapter: "二、 會計循環及會計帳簿",
+        difficulty: "低",
+        explanation: "會計循環標準順序為：平時程序（1.分錄 → 2.過帳 → 3.試算）接續期末程序（4.調整 → 5.結帳 → 6.編表）。"
+      },
+      {
+        id: 5,
+        question: "依商業會計法規定，會計帳簿分為哪兩種？",
+        options: { A: "分類帳及明細分類帳", B: "分類帳及備查簿", C: "日記簿及日記表", D: "序時帳簿及分類帳簿" },
+        answer: "D",
+        chapter: "二、 會計循環及會計帳簿",
+        difficulty: "中",
+        explanation: "依商業會計法第20條規定，會計帳簿分為「序時帳簿」（以事項發生時序為主，如日記簿）及「分類帳簿」（以會計項目為主，如總分類帳）二種。"
+      },
+      {
+        id: 6,
+        question: "甲商號X1年1月1日的負債總額比資產總額之半數少$4,000，淨值則為負債之1.5倍，若甲商號業主於年中時提回部分現金，X1年度經營所得之收益共計$80,000，費損則為$70,000，已知X1年12月31日該商號的負債總額比資產總額之半數少$5,000，淨值仍為負債之1.5倍，則業主於年中時提回的現金為何？",
+        options: { A: "$0", B: "$4,000", C: "$6,000", D: "$16,000" },
+        answer: "D",
+        chapter: "三、 會計基本法則",
+        difficulty: "高",
+        explanation: "【題庫核對提示】本題題庫標準答案設定為 (D) $16,000。推導過程：期初 A0＝L0＋1.5L0＝2.5(0.5A0－4,000) ⇒ A0＝$40,000、L0＝$16,000、E0＝$24,000；期末 A1＝2.5(0.5A1－5,000) ⇒ A1＝$50,000、L1＝$20,000、E1＝$30,000。本期淨利＝$80,000－$70,000＝$10,000（註：若依題幹文字計算提取為 $24,000＋$10,000－$30,000＝$4,000，講解時可帶學生完整列出期初與期末資產負債表等式）。"
+      },
+      {
+        id: 7,
+        question: "甲公司期初資產 $800,000、負債 $350,000；期末資產 $950,000、負債 $300,000。已知本期業主增資 $100,000，業主提取\n $40,000，試求本期淨利為多少？",
+        options: { A: "$60,000", B: "$140,000", C: "$200,000", D: "$260,000" },
+        answer: "B",
+        chapter: "三、 會計基本法則",
+        difficulty: "低",
+        explanation: "期初權益＝$800,000－$350,000＝$450,000；期末權益＝$950,000－$300,000＝$650,000。\n期末權益＝期初權益＋增資－提取＋本期淨利 ⇒ $650,000＝$450,000＋$100,000－$40,000＋淨利 ⇒ 淨利＝$140,000。"
+      },
+      {
+        id: 8,
+        question: "甲商店期初流動資產為 $300,000，流動負債為 $180,000。本期發生下列四筆交易： (1) 賒購商品 $40,000 (2) 以現金 $50,000 \n償還銀行長期借款 (3) 收到客戶償還前欠貨款 $25,000 (4) 現購營業用電腦設備 $30,000 試問上述交易全數入帳後，甲商店期末的「營運資金」為多少？",
+        options: { A: "$40,000", B: "$70,000", C: "$90,000", D: "$120,000" },
+        answer: "A",
+        chapter: "三、 會計基本法則",
+        difficulty: "中",
+        explanation: "營運資金＝流動資產－流動負債，期初＝$300,000－$180,000＝$120,000。\n(1)流動資產與流動負債同增 $40,000，不變；\n(2)流動資產減少 $50,000（長期借款屬非流動負債），營運資金－$50,000；\n(3)流動資產內部一增一減，不變；\n(4)流動資產減少 $30,000（電腦設備屬非流動資產），營運資金－$30,000。\n期末營運資金＝$120,000－$50,000－$30,000＝$40,000。"
+      },
+      {
+        id: 9,
+        question: "下列選項有多少應該貸記:(1)資產減少(2)負債減少(3)權益增加(4)收益增加(5)費損減少",
+        options: { A: "二項", B: "三項", C: "四項", D: "五項" },
+        answer: "B",
+        chapter: "四、 分錄與日記簿",
+        difficulty: "低",
+        explanation: "依借貸法則，貸方代表「資產減少、負債增加、權益增加、收益增加」。本題中 (1)資產減少、(3)權益增加、(4)收益增加 應貸記，共三項；(2)負債減少、(5)費損減少 應借記。"
+      },
+      {
+        id: 10,
+        question: "甲商店向乙公司賒購商品 $30,000，交貨條件為起運點交貨，乙公司先代墊運費 $1,500，付款條件為 2/10, n/30。若甲商店於折扣期間內付清全數欠款，應支付現金多少？",
+        options: { A: "$29,400", B: "$30,870", C: "$30,900", D: "$31,500" },
+        answer: "C",
+        chapter: "四、 分錄與日記簿",
+        difficulty: "中",
+        explanation: "起運點交貨運費由買方（甲商店）負擔，但賣方代墊之運費不得享有現金折扣。\n應付現金＝商品淨額 $30,000 × (1－2%) ＋ 代墊運費 $1,500＝$29,400＋$1,500＝$30,900。"
+      },
+      {
+        id: 11,
+        question: "「應付帳款」帳戶期初貸餘 $45,000，本期借方發生額 $80,000，貸方發生額 $110,000，則期末餘額為多少？",
+        options: { A: "借餘 $15,000", B: "貸餘 $15,000", C: "借餘 $75,000", D: "貸餘 $75,000" },
+        answer: "D",
+        chapter: "五、 過帳與分類帳",
+        difficulty: "低",
+        explanation: "「應付帳款」為負債類帳戶，正常餘額在貸方。\n期末貸餘＝期初貸餘 $45,000＋本期貸方 $110,000－本期借方 $80,000＝貸餘 $75,000。"
+      },
+      {
+        id: 12,
+        question: "下列各項敘述，正確與錯誤者為：\n①分類帳為以交易為主體之帳簿\n②標準式分類帳又稱「T字帳」\n③統制帳戶為實帳戶\n④過帳時互記日記簿頁次與分類帳頁次，可避免漏記或重複過帳的錯誤",
+        options: { A: "②③正確，其餘錯誤", B: "②④正確，其餘錯誤", C: "①②③正確，其餘錯誤", D: "①②④正確，其餘錯誤" },
+        answer: "B",
+        chapter: "五、 過帳與分類帳",
+        difficulty: "高",
+        explanation: "①錯誤：日記簿才是以交易為主體，分類帳是以「會計項目」為主體。\n②正確：標準式分類帳格式左右對稱，簡稱 T 字帳。\n③錯誤：統制帳戶不一定都是實帳戶（例如「營業費用」也可設統制帳戶與明細帳）。\n④正確：互記類頁與日頁可建立勾稽索引，防止漏過或重過。故②④正確。"
+      },
+      {
+        id: 13,
+        question: "總分類帳「應收帳款」統制帳戶期末借餘 $120,000，已知明細分類帳中甲客戶借餘 $85,000、乙客戶借餘 $45,000，\n僅剩丙客戶發生預收貨款性質之異常餘額，則丙客戶明細帳餘額為何？",
+        options: { A: "借餘 $10,000", B: "貸餘 $250,000", C: "借餘 $250,000", D: "貸餘 $10,000" },
+        answer: "D",
+        chapter: "五、 過帳與分類帳",
+        difficulty: "中",
+        explanation: "統制帳戶餘額＝各明細帳戶餘額之和。已知甲＋乙＝借餘 $85,000＋$45,000＝借餘 $130,000，大於總帳借餘 $120,000，故丙客戶必為貸餘 $10,000（$130,000－$10,000＝$120,000）。"
+      },
+      {
+        id: 14,
+        question: "下列不影響試算表平衡的事項為何？",
+        options: { A: "借方資產項目誤以費用項目入帳", B: "貸方過帳至借方", C: "借方或貸方一方漏記", D: "借方單方加計錯誤" },
+        answer: "A",
+        chapter: "六、 試算與試算表",
+        difficulty: "中",
+        explanation: "「借方資產項目誤以費用項目入帳」屬於會計項目誤用，但借貸方金額依然相等，因此不會破壞試算表的借貸平衡；其餘三項皆會導致借貸總額不等。"
+      },
+      {
+        id: 15,
+        question: "餘額式試算表借方總額為 $250,000，貸方總額為 $235,600。經追查發現僅有一項錯誤：將「現購文具用品」的\n貸方金額誤過入借方，試問該筆文具用品金額為多少？",
+        options: { A: "$3,600", B: "$7,200", C: "$14,400", D: "$28,800" },
+        answer: "B",
+        chapter: "六、 試算與試算表",
+        difficulty: "中",
+        explanation: "試算表借貸差額＝$250,000－$235,600＝$14,400。貸方金額誤過入借方會使借方多計 1 倍、貸方少計 1 倍，造成差額為原金額的 2 倍，故原金額＝$14,400 ÷ 2＝$7,200。"
+      },
+      {
+        id: 16,
+        question: "下列敘述正確者為何？\n①一筆分錄借方或貸方其中一方重複過帳，此錯誤不會影響試算表借貸平衡\n②試算是基於借貸平衡原理，用以檢查分錄與過帳的工作有無錯誤的驗證程序\n③過帳時借貸方向如有誤置，試算表借方與貸方差額將可被2整除\n④試算表如果借貸不平衡，表示平時會計處理程序存在錯誤",
+        options: { A: "僅②、③、④", B: "僅①、②、③", C: "僅①、③、④", D: "僅③、④" },
+        answer: "A",
+        chapter: "六、 試算與試算表",
+        difficulty: "高",
+        explanation: "①錯誤：僅「其中一方」重複過帳會導致借貸不平衡（整筆分錄借貸雙方同時重複過帳才不影響平衡）。\n②、③、④皆為試算表的正確基本觀念。"
+      },
+      {
+        id: 17,
+        question: "甲公司對於遞延項目採記實轉虛法。若期末調整前有預付保險費$25,000，預收租金$5,000\n，調整後預付保險費$21,000，預收租金$3,000；又知甲公司調整前淨利為$26,000，則甲公司調整後淨利為：",
+        options: { A: "$32,000", B: "$28,000", C: "$24,000", D: "$20,000" },
+        answer: "C",
+        chapter: "七、 調整",
+        difficulty: "低",
+        explanation: "預付保險費減少 $4,000 → 認列保險費 $4,000（淨利減少 $4,000）；\n預收租金減少 $2,000 → 認列租金收入 $2,000（淨利增加 $2,000）。\n調整後淨利＝$26,000－$4,000＋$2,000＝$24,000。"
+      },
+      {
+        id: 18,
+        question: "甲公司X1年底與X2年底的資產負債表顯示，不動產、廠房及設備項目的帳面金額分別為$1,000與$1,500，X2年提列折舊$300。X2年未有處分不動產、廠房及設備，則該公司於X2年購入不動產、廠房及設備成本為何？",
+        options: { A: "$200", B: "$300", C: "$500", D: "$800" },
+        answer: "D",
+        chapter: "七、 調整",
+        difficulty: "低",
+        explanation: "期末帳面金額＝期初帳面金額＋本期購入成本－本期折舊－處分帳面金額\n⇒ $1,500＝$1,000＋購入成本－$300－$0 ⇒ 購入成本＝$800。"
+      },
+      {
+        id: 19,
+        question: "甲公司X1年12月31日資產負債表無預付與預收項目，資產總額為$500,000。該公司X2年1月份發生下列交易事項：\n①支付上個月的應付薪資$50,000\n②認列服務收入$100,000，其中60%已收現\n③收回X1年沖銷帳款$4,000\n④認列營業費用$80,000，其中65%已付現，10%為折舊費用，5%為預期信用減損損失，其餘20%尚未付現\n根據上述交易內容，甲公司X2年1月底的資產總額為何？",
+        options: { A: "$470,000", B: "$486,000", C: "$520,000", D: "$536,000" },
+        answer: "B",
+        chapter: "七、 調整",
+        difficulty: "高",
+        explanation: "期初資產 $500,000：\n①支付應付薪資：現金減少 $50,000；\n②認列收入：現金增加 $60,000、應收帳款增加 $40,000（資產＋$100,000）；\n③收回已沖銷帳款：現金＋$4,000、備抵損失＋$4,000，資產淨變動為 $0；\n④認列營業費用：現金減少 $80,000×65%＝$52,000、累計折舊增加 $8,000、備抵損失增加 $4,000（資產共－$64,000，未付現$16,000為負債增加）。\n期末資產＝$500,000－$50,000＋$100,000＋$0－$64,000＝$486,000。"
+      },
+      {
+        id: 20,
+        question: "以下幾項會計項目結帳後餘額為零?(1)薪資費用(2)用品盤存(3)應付利息(4)本期損益(5)進貨(6)折舊(7)普通股股本",
+        options: { A: "四項", B: "五項", C: "六項", D: "七項" },
+        answer: "A",
+        chapter: "八、 結帳",
+        difficulty: "低",
+        explanation: "結帳後餘額為零者為「虛帳戶（收益與費損類）」及結帳專用的「本期損益」：(1)薪資費用、(4)本期損益、(5)進貨、(6)折舊，共四項。\n(2)用品盤存為資產、(3)應付利息為負債、(7)普通股股本為權益，皆為實帳戶，餘額結轉下期。"
+      },
+      {
+        id: 21,
+        question: "以下對於結帳之敘述，何者不正確？",
+        options: { A: "實帳戶餘額結轉下期", B: "虛帳戶餘額結清歸零", C: "本期損益為結帳時專用，平時並無此帳戶記錄", D: "本期淨損金額應結轉業主資本" },
+        answer: "D",
+        chapter: "八、 結帳",
+        difficulty: "低",
+        explanation: "實帳戶結轉下期、虛帳戶結清歸零、本期損益僅於期末結帳時使用（A、B、C均正確）；(D)未區分組織型態（公司組織應結轉保留盈餘）且獨資通常先結轉業主往來，為題庫設定之不正確敘述。"
+      },
+      {
+        id: 22,
+        question: "已知本期銷貨淨額 $600,000，期初存貨 $80,000，進貨淨額 $350,000，期末存貨 $60,000，\n進貨費用$10,000，進貨折讓$5,000，則本期「銷貨毛利」為多少？",
+        options: { A: "$225,000", B: "$230,000", C: "$270,000", D: "$370,000" },
+        answer: "B",
+        chapter: "九、 財務報表",
+        difficulty: "低",
+        explanation: "陷阱提醒：題目已直接給定「進貨淨額 $350,000」（進貨費用與進貨折讓已包含在進貨淨額計算內，不可重複加減！）。\n銷貨成本＝期初存貨 $80,000＋進貨淨額 $350,000－期末存貨 $60,000＝$370,000；\n銷貨毛利＝$600,000－$370,000＝$230,000。"
+      },
+      {
+        id: 23,
+        question: "甲商店為四位合夥人共同出資設立的合夥組織，X1年期初資產$1,000（流動、非流動各半）、負債$500（皆為非流動）；期末資產中，流動資產占1/3；本期增資$500，無減資、存入或提取，新增流動負債若干，非流動負債不變，淨利$1,500，已知甲商店X1年期末的流動比率為2倍，則本期新增負債為：",
+        options: { A: "$200", B: "$300", C: "$500", D: "$600" },
+        answer: "D",
+        chapter: "九、 財務報表",
+        difficulty: "高",
+        explanation: "期初權益＝$1,000－$500＝$500；期末權益＝$500＋增資 $500＋淨利 $1,500＝$2,500。\n設新增流動負債為 X，則期末負債總額＝$500＋X，期末資產總額＝($500＋X)＋$2,500＝$3,000＋X，期末流動資產＝($3,000＋X)/3。\n由流動比率＝2 得：[($3,000＋X)/3] ÷ X＝2 ⇒ $3,000＋X＝6X ⇒ X＝$600。"
+      },
+      {
+        id: 24,
+        question: "下列何者非速動資產?",
+        options: { A: "應收帳款", B: "零用金", C: "存貨", D: "應收票據" },
+        answer: "C",
+        chapter: "九、 財務報表",
+        difficulty: "低",
+        explanation: "速動資產＝流動資產－存貨－預付費用，主要包含現金及約當現金（含零用金）、透過損益按公允價值衡量之金融資產、應收票據及應收帳款。「存貨」變現速度較慢，非速動資產。"
+      },
+      {
+        id: 25,
+        question: "若本期銷貨淨額 $250,000，銷貨毛利$150,000，營業費用 $90,000，營業外收入 $15,000，營業外支出 $25,000，\n所得稅費用 $26,000，則本期「營業利益」為多少？",
+        options: { A: "$160,000", B: "$124,000", C: "$60,000", D: "$24,000" },
+        answer: "C",
+        chapter: "九、 財務報表",
+        difficulty: "中",
+        explanation: "營業利益＝銷貨毛利－營業費用＝$150,000－$90,000＝$60,000。（營業外收支與所得稅費用屬於營業利益之後的計算項目，不可計入營業利益。）"
+      },
+      {
+        id: 26,
+        question: "下列敘述何者錯誤？",
+        options: { A: "營業稅是指對營業人銷售貨物或勞務所課徵的一種銷售稅", B: "目前我國加值型營業稅係採「稅額相減法」", C: "外銷貨物適用零稅率，其產生進項稅額不可申請扣抵", D: "當銷售貨物或勞務買受人為營業人需開立三聯式統一發票" },
+        answer: "C",
+        chapter: "十、 加值型營業稅會計實務",
+        difficulty: "中",
+        explanation: "(C)錯誤：外銷貨物適用「零稅率」，銷項稅額為 0，且其溢付之進項稅額「可以」全數申請退還（扣抵）；「免稅」才不得扣抵進項稅額，這是營業稅最常考的比較觀念。"
+      },
+      {
+        id: 27,
+        question: "依據營業稅法規定，營業人取得下列哪一項憑證的「進項稅額」，得申報扣抵銷項稅額？",
+        options: { A: "宴請客戶餐敘的餐廳三聯式統一發票", B: "購買員工中秋節禮盒的三聯式統一發票", C: "購買總經理專用自用乘人小汽車的統一發票", D: "購買營業用電腦設備的三聯式統一發票" },
+        answer: "D",
+        chapter: "十、 加值型營業稅會計實務",
+        difficulty: "中",
+        explanation: "依營業稅法第19條規定：(A)交際應酬、(B)酬勞員工個人、(C)自用乘人小汽車之進項稅額均不得扣抵；僅 (D) 供本業及附屬業務使用之營業用電腦設備可申報扣抵銷項稅額。"
+      },
+      {
+        id: 28,
+        question: "某公司本期「銷項稅額」貸餘 $45,000，「進項稅額」借餘 $52,000，且上期尚有「留抵稅額」借餘 $3,000。期末結算營業稅時，\n帳上應認列多少留抵稅額或應納稅額？",
+        options: { A: "應納稅額 $4,000", B: "應納稅額 $7,000", C: "留抵稅額 $7,000", D: "留抵稅額 $10,000" },
+        answer: "D",
+        chapter: "十、 加值型營業稅會計實務",
+        difficulty: "低",
+        explanation: "本期可扣抵稅額合計＝本期進項稅額 $52,000＋上期留抵稅額 $3,000＝$55,000，大於本期銷項稅額 $45,000，差額 $10,000 結轉為期末「留抵稅額」（借餘）。"
+      },
+      {
+        id: 29,
+        question: "甲公司本年度綜合損益表資訊顯示，銷貨毛利率40%，營業利益率20%，稅前純益率18%，營業外收支項目只有租金收入$50,000以及財務成本若干。已知本期營業利益為$200,000；所得稅費用依所得稅法規定，$120,000以下免徵，課稅所得額超過$120,000者，就其全部課稅所得額課徵17%，但應納稅額不得超過課稅所得額超過$120,000部分之半數。依此，下列何者正確：",
+        options: { A: "營業費用$400,000", B: "財務成本$50,000", C: "稅後純益率15%", D: "所得稅費用$15,000" },
+        answer: "C",
+        chapter: "九、 財務報表",
+        difficulty: "高",
+        explanation: "銷貨淨額＝營業利益 $200,000 ÷ 20%＝$1,000,000；銷貨毛利＝$1,000,000 × 40%＝$400,000，故營業費用＝$400,000－$200,000＝$200,000（A錯）。\n稅前淨利＝$1,000,000 × 18%＝$180,000，由 $200,000＋租金收入 $50,000－財務成本＝$180,000，得財務成本＝$70,000（B錯）。\n所得稅：全額 17% 為 $180,000×17%＝$30,600，上限為 ($180,000－$120,000)÷2＝$30,000，取較低者 $30,000（D錯）。\n稅後淨利＝$180,000－$30,000＝$150,000，稅後純益率＝$150,000 ÷ $1,000,000＝15%（C正確）。"
+      }
+    ];
+
+    // 十大章節標準排序
+    const CHAPTER_ORDER = [
+      "一、 會計基本概念",
+      "二、 會計循環及會計帳簿",
+      "三、 會計基本法則",
+      "四、 分錄與日記簿",
+      "五、 過帳與分類帳",
+      "六、 試算與試算表",
+      "七、 調整",
+      "八、 結帳",
+      "九、 財務報表",
+      "十、 加值型營業稅會計實務"
+    ];
+
+    // =====================================================================
+    // 全域狀態管理
+    // =====================================================================
+    let questions = JSON.parse(JSON.stringify(BUILT_IN_QUESTIONS));
+    let examState = {
+      status: 'setup', // 'setup' | 'exam' | 'results'
+      studentName: '受測同學',
+      examDate: '',
+      answers: [],          // 'A' | 'B' | 'C' | 'D' | null
+      confidences: [],      // 1..100 (預設 50)
+      confTouched: [],      // boolean
+      flagged: [],          // boolean
+      timeSpentMs: [],      // 每題累計毫秒數
+      activeStartMs: null,  // 當前題目開始計時的時間戳
+      timerInterval: null
+    };
+
+    let currentIndex = 0;
+
+    // 檢討模式狀態
+    let reviewState = {
+      preset: 'all',        // 'all' | 'wrong' | 'blindspot' | 'lucky' | 'slowest'
+      chapter: 'all',
+      difficulty: 'all',
+      viewMode: 'single',   // 'single' | 'list'
+      singleIdx: 0,
+      filteredRecords: []
+    };
+
+    let computedAnalytics = null;
+
+    // =====================================================================
+    // 初始化與工具函式
+    // =====================================================================
+    window.addEventListener('DOMContentLoaded', () => {
+      // 自動帶入今日日期
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      document.getElementById('input-exam-date').value = `${yyyy}-${mm}-${dd}`;
+
+      // 綁定信心滑桿與數字輸入框事件
+      const slider = document.getElementById('conf-slider');
+      const numInput = document.getElementById('conf-number-input');
+
+      slider.addEventListener('input', (e) => {
+        setConfidence(parseInt(e.target.value, 10));
+      });
+
+      numInput.addEventListener('change', (e) => {
+        let val = parseInt(e.target.value, 10);
+        if (isNaN(val)) val = 50;
+        val = Math.max(1, Math.min(100, val));
+        setConfidence(val);
+      });
+
+      // 綁定 Excel 檔案匯入
+      document.getElementById('excel-file-input').addEventListener('change', handleExcelUpload);
+
+      // 綁定鍵盤快捷鍵 (A/B/C/D 選答，左右方向鍵換題)
+      window.addEventListener('keydown', (e) => {
+        if (examState.status !== 'exam') return;
+        const modalOpen = !document.getElementById('submit-modal').classList.contains('hidden');
+        if (modalOpen) return;
+        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
+
+        const key = e.key.toUpperCase();
+        if (['A', 'B', 'C', 'D'].includes(key)) {
+          selectOption(key);
+        } else if (e.key === 'ArrowLeft') {
+          if (currentIndex > 0) goToQuestion(currentIndex - 1);
+        } else if (e.key === 'ArrowRight') {
+          if (currentIndex < questions.length - 1) goToQuestion(currentIndex + 1);
+        }
+      });
+    });
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const bgMap = {
+        info: 'bg-slate-900 text-white border-slate-700',
+        success: 'bg-emerald-700 text-white border-emerald-500',
+        warning: 'bg-amber-600 text-white border-amber-400',
+        error: 'bg-rose-700 text-white border-rose-500'
+      };
+      toast.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-lg border text-sm font-semibold transition-all duration-300 ${bgMap[type] || bgMap.info}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(8px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 3200);
+    }
+
+    function formatMMSS(totalSeconds) {
+      const s = Math.max(0, Math.floor(totalSeconds));
+      const mins = Math.floor(s / 60);
+      const secs = s % 60;
+      return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    function formatChineseDuration(totalSeconds) {
+      const s = Math.max(0, Math.round(totalSeconds));
+      const mins = Math.floor(s / 60);
+      const secs = s % 60;
+      if (mins === 0) return `${secs}秒`;
+      return `${mins}分${secs}秒`;
+    }
+
+    // =====================================================================
+    // Excel 題庫匯入與解析 (支援教師日後擴充使用)
+    // =====================================================================
+    function parseSingleCellOptions(rawStr) {
+      const text = String(rawStr || '').trim();
+      // 嘗試匹配 (A)...(B)...(C)...(D)... 或 A....B....C....D....
+      const regex = /(?:[\(（]?\s*([A-D])\s*[\)）\.、:：])\s*([\s\S]*?)(?=(?:[\(（]?\s*[A-D]\s*[\)）\.、:：])|$)/gi;
+      const opts = { A: '', B: '', C: '', D: '' };
+      let match;
+      while ((match = regex.exec(text)) !== null) {
+        const letter = match[1].toUpperCase();
+        opts[letter] = match[2].trim();
+      }
+      if (!opts.A && !opts.B) {
+        // 若以換行分隔 4 行
+        const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        ['A', 'B', 'C', 'D'].forEach((k, idx) => {
+          if (lines[idx]) opts[k] = lines[idx].replace(/^[\(（]?[A-D][\)）\.、:：]\s*/i, '');
+        });
+      }
+      return opts;
+    }
+
+    function handleExcelUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(firstSheet, { defval: '' });
+
+          const parsed = rows
+            .filter(r => String(r['題目'] || '').trim() !== '')
+            .map((r, idx) => {
+              const ansRaw = String(r['答案'] || '').trim().toUpperCase().replace(/[^A-D]/g, '');
+              const diffRaw = String(r['難易度'] || r['難度'] || '中').trim();
+              const diff = ['低', '中', '高'].includes(diffRaw) ? diffRaw : '中';
+              return {
+                id: idx + 1,
+                question: String(r['題目']).trim(),
+                options: parseSingleCellOptions(r['選項']),
+                answer: ansRaw || 'A',
+                chapter: String(r['章節'] || '未分類單元').trim(),
+                difficulty: diff,
+                explanation: String(r['解析'] || r['詳解'] || `本題標準答案為 (${ansRaw || 'A'})，屬於「${String(r['章節'] || '會計學')}」核心觀念。`).trim()
+              };
+            });
+
+          if (parsed.length === 0) {
+            showToast('Excel 檔案中找不到有效的「題目」欄位資料，請檢查格式。', 'error');
+            return;
+          }
+
+          questions = parsed;
+          document.getElementById('setup-bank-badge').textContent = `已載入自訂題庫：共 ${questions.length} 題`;
+          document.getElementById('btn-reset-default-bank').classList.remove('hidden');
+          showToast(`成功匯入 ${questions.length} 題自訂題庫！`, 'success');
+        } catch (err) {
+          console.error(err);
+          showToast('讀取 Excel 檔案失敗，請確認檔案未損毀。', 'error');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+      event.target.value = '';
+    }
+
+    function resetToBuiltInQuestions() {
+      questions = JSON.parse(JSON.stringify(BUILT_IN_QUESTIONS));
+      document.getElementById('setup-bank-badge').textContent = `內建題庫：共 ${questions.length} 題｜涵蓋十大会計章節`;
+      document.getElementById('btn-reset-default-bank').classList.add('hidden');
+      showToast('已恢復內建 29 題會計學題庫', 'info');
+    }
+
+    // =====================================================================
+    // 測驗啟動、切換題目與計時器控制
+    // =====================================================================
+    function startExam() {
+      const nameInput = document.getElementById('input-student-name').value.trim();
+      const dateInput = document.getElementById('input-exam-date').value;
+
+      const n = questions.length;
+      examState = {
+        status: 'exam',
+        studentName: nameInput || '受測同學',
+        examDate: dateInput || new Date().toISOString().slice(0, 10),
+        answers: new Array(n).fill(null),
+        confidences: new Array(n).fill(50),
+        confTouched: new Array(n).fill(false),
+        flagged: new Array(n).fill(false),
+        timeSpentMs: new Array(n).fill(0),
+        activeStartMs: Date.now(),
+        timerInterval: null
+      };
+
+      currentIndex = 0;
+
+      document.getElementById('exam-total-count-1').textContent = n;
+      document.getElementById('exam-total-count-2').textContent = n;
+
+      document.getElementById('view-setup').classList.add('hidden');
+      document.getElementById('view-results').classList.add('hidden');
+      document.getElementById('view-exam').classList.remove('hidden');
+
+      renderNavGrid();
+      renderCurrentQuestion();
+      startTimerLoop();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function flushActiveQuestionTime() {
+      if (examState.activeStartMs !== null && examState.status === 'exam') {
+        const now = Date.now();
+        const delta = Math.max(0, now - examState.activeStartMs);
+        examState.timeSpentMs[currentIndex] += delta;
+        examState.activeStartMs = now;
+      }
+    }
+
+    function startTimerLoop() {
+      if (examState.timerInterval) clearInterval(examState.timerInterval);
+      examState.activeStartMs = Date.now();
+      examState.timerInterval = setInterval(() => {
+        if (examState.status !== 'exam' || examState.activeStartMs === null) return;
+        const now = Date.now();
+        const currentDelta = now - examState.activeStartMs;
+        const curQSec = Math.floor((examState.timeSpentMs[currentIndex] + currentDelta) / 1000);
+        const totalMs = examState.timeSpentMs.reduce((acc, v) => acc + v, 0) + currentDelta;
+
+        document.getElementById('exam-q-timer').textContent = `${curQSec} 秒`;
+        document.getElementById('exam-total-timer').textContent = formatMMSS(totalMs / 1000);
+      }, 250);
+    }
+
+    function goToQuestion(targetIdx) {
+      if (targetIdx < 0 || targetIdx >= questions.length) return;
+      flushActiveQuestionTime();
+      currentIndex = targetIdx;
+      renderNavGrid();
+      renderCurrentQuestion();
+    }
+
+    function handleNextOrSubmit() {
+      if (currentIndex < questions.length - 1) {
+        goToQuestion(currentIndex + 1);
+      } else {
+        openSubmitModal();
+      }
+    }
+
+    function selectOption(optLetter) {
+      examState.answers[currentIndex] = optLetter;
+      renderCurrentQuestion();
+      renderNavGrid();
+      updateExamHeaderStats();
+    }
+
+    function setConfidence(val) {
+      const clamped = Math.max(1, Math.min(100, val));
+      examState.confidences[currentIndex] = clamped;
+      examState.confTouched[currentIndex] = true;
+      updateConfidenceUI(clamped, true);
+      renderNavGrid();
+      updateExamHeaderStats();
+    }
+
+    function toggleFlagCurrent() {
+      examState.flagged[currentIndex] = !examState.flagged[currentIndex];
+      renderCurrentQuestion();
+      renderNavGrid();
+    }
+
+    function updateExamHeaderStats() {
+      const n = questions.length;
+      const answeredCount = examState.answers.filter(a => a !== null).length;
+      const confCount = examState.confTouched.filter(Boolean).length;
+
+      document.getElementById('exam-answered-count').textContent = answeredCount;
+      document.getElementById('exam-conf-count').textContent = confCount;
+      document.getElementById('nav-mobile-summary').textContent = `${answeredCount}/${n} 已答`;
+
+      const pct = Math.round((answeredCount / n) * 100);
+      document.getElementById('exam-progress-bar').style.width = `${pct}%`;
+    }
+
+    function renderNavGrid() {
+      const grid = document.getElementById('question-nav-grid');
+      grid.innerHTML = '';
+
+      questions.forEach((q, idx) => {
+        const isCurrent = idx === currentIndex;
+        const hasAns = examState.answers[idx] !== null;
+        const hasConf = examState.confTouched[idx];
+        const isFlagged = examState.flagged[idx];
+
+        let baseClass = 'relative h-10 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center border transition cursor-pointer tabular-nums ';
+        if (hasAns && hasConf) {
+          baseClass += 'bg-emerald-50 text-emerald-800 border-emerald-400 hover:bg-emerald-100 ';
+        } else if (hasAns) {
+          baseClass += 'bg-blue-50 text-blue-900 border-blue-400 hover:bg-blue-100 ';
+        } else {
+          baseClass += 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 ';
+        }
+
+        if (isCurrent) {
+          baseClass += 'ring-2 ring-slate-900 ring-offset-1 font-extrabold scale-[1.03] ';
+        }
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = baseClass;
+        btn.onclick = () => goToQuestion(idx);
+        btn.innerHTML = `
+          <span>${idx + 1}</span>
+          ${isFlagged ? '<span class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-white"></span>' : ''}
+        `;
+        grid.appendChild(btn);
+      });
+    }
+
+    function renderCurrentQuestion() {
+      const q = questions[currentIndex];
+      const n = questions.length;
+      const selectedAns = examState.answers[currentIndex];
+      const confVal = examState.confidences[currentIndex];
+      const confTouched = examState.confTouched[currentIndex];
+      const isFlagged = examState.flagged[currentIndex];
+
+      // 題號與作答狀態徽章
+      document.getElementById('q-number-badge').textContent = `第 ${currentIndex + 1} 題 / 共 ${n} 題`;
+      const statusPill = document.getElementById('q-status-pill');
+      if (selectedAns && confTouched) {
+        statusPill.textContent = `已選 (${selectedAns})・已評信心 ${confVal}%`;
+        statusPill.className = 'px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold';
+      } else if (selectedAns) {
+        statusPill.textContent = `已選 (${selectedAns})・請評估信心`;
+        statusPill.className = 'px-2.5 py-1 rounded-lg bg-blue-50 text-blue-800 border border-blue-200 text-xs font-bold';
+      } else {
+        statusPill.textContent = '尚未作答';
+        statusPill.className = 'px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 text-xs font-semibold';
+      }
+
+      // 標記按鈕狀態
+      const flagBtn = document.getElementById('btn-toggle-flag');
+      const flagText = document.getElementById('flag-btn-text');
+      if (isFlagged) {
+        flagBtn.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold border transition cursor-pointer bg-amber-100 text-amber-800 border-amber-400';
+        flagText.textContent = '已標記待檢查';
+      } else {
+        flagBtn.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold border transition cursor-pointer bg-white text-slate-600 border-slate-200 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300';
+        flagText.textContent = '標記待檢查';
+      }
+
+      // 題幹
+      document.getElementById('q-stem').textContent = q.question;
+
+      // 選項卡片
+      const optContainer = document.getElementById('q-options-container');
+      optContainer.innerHTML = '';
+      ['A', 'B', 'C', 'D'].forEach(letter => {
+        const isSelected = selectedAns === letter;
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.onclick = () => selectOption(letter);
+        card.className = isSelected
+          ? 'w-full text-left p-4 rounded-2xl border-2 border-blue-900 bg-blue-50/70 shadow-xs flex items-start gap-3.5 transition cursor-pointer'
+          : 'w-full text-left p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 flex items-start gap-3.5 transition cursor-pointer';
+
+        const badgeClass = isSelected
+          ? 'w-8 h-8 rounded-xl bg-blue-900 text-white font-extrabold text-sm flex items-center justify-center shrink-0 mt-0.5'
+          : 'w-8 h-8 rounded-xl bg-slate-100 text-slate-700 font-extrabold text-sm flex items-center justify-center shrink-0 mt-0.5';
+
+        card.innerHTML = `
+          <span class="${badgeClass}">${letter}</span>
+          <span class="text-slate-900 text-sm sm:text-base font-medium leading-relaxed pt-1 whitespace-pre-line">${escapeHtml(q.options[letter] || '')}</span>
+        `;
+        optContainer.appendChild(card);
+      });
+
+      // 更新信心滑桿 UI
+      updateConfidenceUI(confVal, confTouched);
+
+      // 更新底部上/下一題按鈕
+      document.getElementById('btn-prev-q').disabled = currentIndex === 0;
+      const nextText = document.getElementById('btn-next-text');
+      const nextBtn = document.getElementById('btn-next-q');
+      if (currentIndex === n - 1) {
+        nextText.textContent = '完成作答，檢視交卷';
+        nextBtn.className = 'inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-amber-600 text-white hover:bg-amber-700 shadow-sm transition cursor-pointer';
+      } else {
+        nextText.textContent = '下一題';
+        nextBtn.className = 'inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-slate-900 text-white hover:bg-blue-900 shadow-sm transition cursor-pointer';
+      }
+
+      // 更新當前題目計時顯示
+      const curQSec = Math.floor(examState.timeSpentMs[currentIndex] / 1000);
+      document.getElementById('exam-q-timer').textContent = `${curQSec} 秒`;
+      updateExamHeaderStats();
+    }
+
+    function updateConfidenceUI(val, touched) {
+      const slider = document.getElementById('conf-slider');
+      const numInput = document.getElementById('conf-number-input');
+      const badge = document.getElementById('conf-tier-badge');
+
+      slider.value = val;
+      numInput.value = val;
+
+      let color = '#1E3A8A';
+      let tierText = '猶豫區 (40–69%)';
+      let badgeClass = 'px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-100 text-blue-800';
+
+      if (!touched) {
+        color = '#64748B';
+        tierText = '尚未調整 (預設 50%)';
+        badgeClass = 'px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-200 text-slate-700';
+      } else if (val < 40) {
+        color = '#E11D48';
+        tierText = '猜測區 (1–39%)';
+        badgeClass = 'px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-100 text-rose-800';
+      } else if (val < 70) {
+        color = '#D97706';
+        tierText = '猶豫區 (40–69%)';
+        badgeClass = 'px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-800';
+      } else if (val < 90) {
+        color = '#0284C7';
+        tierText = '把握區 (70–89%)';
+        badgeClass = 'px-2.5 py-1 rounded-lg text-xs font-bold bg-sky-100 text-sky-800';
+      } else {
+        color = '#059669';
+        tierText = '確信區 (90–100%)';
+        badgeClass = 'px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800';
+      }
+
+      slider.style.setProperty('--slider-color', color);
+      slider.style.background = `linear-gradient(to right, ${color} 0%, ${color} ${val}%, #E2E8F0 ${val}%, #E2E8F0 100%)`;
+      badge.textContent = tierText;
+      badge.className = badgeClass;
+
+      // 高亮對應快速按鈕
+      document.querySelectorAll('.conf-preset-btn').forEach(btn => {
+        const presetVal = parseInt(btn.getAttribute('data-preset'), 10);
+        if (touched && presetVal === val) {
+          btn.classList.add('ring-2', 'ring-slate-900', 'bg-slate-200');
+        } else {
+          btn.classList.remove('ring-2', 'ring-slate-900', 'bg-slate-200');
+        }
+      });
+    }
+
+    // =====================================================================
+    // 交卷確認視窗與正式結算
+    // =====================================================================
+    function openSubmitModal() {
+      flushActiveQuestionTime();
+      examState.activeStartMs = null; // 暫停計時
+
+      const unanswered = [];
+      const unratedConf = [];
+      const flaggedList = [];
+
+      questions.forEach((q, idx) => {
+        if (examState.answers[idx] === null) unanswered.push(idx + 1);
+        if (!examState.confTouched[idx]) unratedConf.push(idx + 1);
+        if (examState.flagged[idx]) flaggedList.push(idx + 1);
+      });
+
+      const warnBox = document.getElementById('submit-modal-warnings');
+      let html = '';
+
+      if (unanswered.length === 0 && unratedConf.length === 0) {
+        html += `<div class="flex items-center gap-2 text-emerald-700 font-bold">
+          <span>✅</span> 所有 ${questions.length} 題皆已完成作答與信心指數評估！
+        </div>`;
+      } else {
+        if (unanswered.length > 0) {
+          html += `<div>
+            <p class="font-bold text-rose-700">⚠️ 尚有 ${unanswered.length} 題未選擇答案（交卷將計為答錯）：</p>
+            <div class="flex flex-wrap gap-1.5 mt-1.5">
+              ${unanswered.map(num => `<button type="button" onclick="jumpFromModal(${num - 1})" class="px-2 py-0.5 rounded bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold text-xs cursor-pointer">第 ${num} 題</button>`).join('')}
+            </div>
+          </div>`;
+        }
+        if (unratedConf.length > 0) {
+          html += `<div>
+            <p class="font-bold text-amber-700">🎯 尚有 ${unratedConf.length} 題未調整信心指數（若直接交卷將以預設 50% 計算）：</p>
+            <div class="flex flex-wrap gap-1.5 mt-1.5">
+              ${unratedConf.map(num => `<button type="button" onclick="jumpFromModal(${num - 1})" class="px-2 py-0.5 rounded bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold text-xs cursor-pointer">第 ${num} 題</button>`).join('')}
+            </div>
+          </div>`;
+        }
+      }
+
+      if (flaggedList.length > 0) {
+        html += `<div class="pt-2 border-t border-slate-200">
+          <p class="font-bold text-slate-700">🚩 你標記待檢查的題目（${flaggedList.length} 題）：</p>
+          <div class="flex flex-wrap gap-1.5 mt-1.5">
+            ${flaggedList.map(num => `<button type="button" onclick="jumpFromModal(${num - 1})" class="px-2 py-0.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs cursor-pointer">第 ${num} 題</button>`).join('')}
+          </div>
+        </div>`;
+      }
+
+      warnBox.innerHTML = html;
+      document.getElementById('submit-modal').classList.remove('hidden');
+    }
+
+    function jumpFromModal(idx) {
+      closeSubmitModal();
+      goToQuestion(idx);
+    }
+
+    function closeSubmitModal() {
+      document.getElementById('submit-modal').classList.add('hidden');
+      if (examState.status === 'exam') {
+        examState.activeStartMs = Date.now(); // 恢復計時
+      }
+    }
+
+    function finalizeExam() {
+      closeSubmitModal();
+      if (examState.timerInterval) clearInterval(examState.timerInterval);
+      examState.status = 'results';
+
+      computedAnalytics = computeAnalytics();
+      renderResultsDashboard(computedAnalytics);
+
+      document.getElementById('view-exam').classList.add('hidden');
+      document.getElementById('view-results').classList.remove('hidden');
+      switchResultTab(1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function restartToSetup() {
+      if (examState.timerInterval) clearInterval(examState.timerInterval);
+      examState.status = 'setup';
+      document.getElementById('view-results').classList.add('hidden');
+      document.getElementById('view-exam').classList.add('hidden');
+      document.getElementById('view-setup').classList.remove('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // =====================================================================
+    // 核心數據分析引擎 (Overall, Difficulty, Quadrants, Time, Chapters)
+    // =====================================================================
+    function computeAnalytics() {
+      const total = questions.length;
+      const records = questions.map((q, idx) => {
+        const userAns = examState.answers[idx];
+        const isCorrect = userAns === q.answer;
+        const confidence = examState.confidences[idx];
+        const confTouched = examState.confTouched[idx];
+        const timeSec = Math.max(1, Math.round(examState.timeSpentMs[idx] / 1000));
+        const highConf = confidence >= 70;
+
+        let quadrant = '';
+        if (highConf && !isCorrect) quadrant = 'blindspot'; // Q1: 高信心答錯
+        else if (highConf && isCorrect) quadrant = 'mastered'; // Q2: 高信心答對
+        else if (!highConf && !isCorrect) quadrant = 'unknown'; // Q3: 低信心答錯
+        else quadrant = 'lucky'; // Q4: 低信心答對
+
+        return {
+          index: idx,
+          id: q.id,
+          question: q.question,
+          options: q.options,
+          answer: q.answer,
+          chapter: q.chapter,
+          difficulty: q.difficulty,
+          explanation: q.explanation,
+          userAns,
+          isCorrect,
+          confidence,
+          confTouched,
+          timeSec,
+          quadrant
+        };
+      });
+
+      const correctCount = records.filter(r => r.isCorrect).length;
+      const accuracy = total > 0 ? (correctCount / total) * 100 : 0;
+
+      const totalTimeSec = records.reduce((s, r) => s + r.timeSec, 0);
+      const avgTimeSec = total > 0 ? totalTimeSec / total : 0;
+
+      // 平均信心（若學生有實際評分題目，優先呈現全卷平均信心並註明已評題數）
+      const ratedRecords = records.filter(r => r.confTouched);
+      const avgConf = ratedRecords.length > 0
+        ? ratedRecords.reduce((s, r) => s + r.confidence, 0) / ratedRecords.length
+        : records.reduce((s, r) => s + r.confidence, 0) / Math.max(1, total);
+
+      const confGap = avgConf - accuracy; // 正值代表過度自信，負值代表偏保守
+
+      // 四象限分組
+      const quads = {
+        blindspot: records.filter(r => r.quadrant === 'blindspot'),
+        mastered: records.filter(r => r.quadrant === 'mastered'),
+        unknown: records.filter(r => r.quadrant === 'unknown'),
+        lucky: records.filter(r => r.quadrant === 'lucky')
+      };
+
+      // 難度分析 (低 / 中 / 高)
+      const diffLevels = ['低', '中', '高'];
+      const difficultyStats = diffLevels.map(level => {
+        const subset = records.filter(r => r.difficulty === level);
+        const cnt = subset.length;
+        const corr = subset.filter(r => r.isCorrect).length;
+        const acc = cnt > 0 ? (corr / cnt) * 100 : 0;
+        const conf = cnt > 0 ? subset.reduce((s, r) => s + r.confidence, 0) / cnt : 0;
+        const time = cnt > 0 ? subset.reduce((s, r) => s + r.timeSec, 0) / cnt : 0;
+        return { level, count: cnt, correct: corr, accuracy: acc, avgConf: conf, avgTime: time };
+      });
+
+      // 時間洞察
+      const sortedByTimeDesc = [...records].sort((a, b) => b.timeSec - a.timeSec);
+      const slowestTop3 = sortedByTimeDesc.slice(0, 3);
+      const slowestTop5Ids = new Set(sortedByTimeDesc.slice(0, 5).map(r => r.id));
+      const carelessWrong = records.filter(r => !r.isCorrect && r.timeSec < 15);
+
+      // 章節深度細分分析
+      const presentChapters = Array.from(new Set(records.map(r => r.chapter)));
+      const orderedChapters = [
+        ...CHAPTER_ORDER.filter(ch => presentChapters.includes(ch)),
+        ...presentChapters.filter(ch => !CHAPTER_ORDER.includes(ch))
+      ];
+
+      const chapterStats = orderedChapters.map(ch => {
+        const subset = records.filter(r => r.chapter === ch);
+        const cnt = subset.length;
+        const corr = subset.filter(r => r.isCorrect).length;
+        const acc = cnt > 0 ? (corr / cnt) * 100 : 0;
+        const conf = cnt > 0 ? subset.reduce((s, r) => s + r.confidence, 0) / cnt : 0;
+        const gap = conf - acc;
+        const time = cnt > 0 ? subset.reduce((s, r) => s + r.timeSec, 0) / cnt : 0;
+        const blindspots = subset.filter(r => r.quadrant === 'blindspot').length;
+
+        // 該章節內的 低 / 中 / 高 難度細分
+        const byDiff = {};
+        ['低', '中', '高'].forEach(d => {
+          const dSub = subset.filter(r => r.difficulty === d);
+          byDiff[d] = {
+            count: dSub.length,
+            correct: dSub.filter(r => r.isCorrect).length,
+            accuracy: dSub.length > 0 ? (dSub.filter(r => r.isCorrect).length / dSub.length) * 100 : null
+          };
+        });
+
+        // 教學診斷標籤判定
+        let tag = { text: '📈 穩健發展', cls: 'bg-blue-50 text-blue-800 border-blue-200' };
+        if (blindspots > 0 && acc < 70) {
+          tag = { text: '🚨 觀念盲點優先', cls: 'bg-rose-50 text-rose-700 border-rose-200' };
+        } else if (acc === 100 && conf >= 70) {
+          tag = { text: '⭐ 優勢掌握單元', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+        } else if (byDiff['低'].accuracy !== null && byDiff['低'].accuracy < 100) {
+          tag = { text: '⚠️ 基礎觀念待補', cls: 'bg-amber-50 text-amber-800 border-amber-200' };
+        } else if (byDiff['高'].accuracy !== null && byDiff['高'].accuracy < 50 && acc >= 50) {
+          tag = { text: '📌 進階綜合題卡關', cls: 'bg-purple-50 text-purple-800 border-purple-200' };
+        } else if (acc < 60) {
+          tag = { text: '⚠️ 重點加強單元', cls: 'bg-amber-50 text-amber-800 border-amber-200' };
+        }
+
+        // 計算優先補強分數 (越低代表越需要優先補強)
+        const priorityScore = acc - blindspots * 15;
+
+        return {
+          chapter: ch,
+          count: cnt,
+          correct: corr,
+          accuracy: acc,
+          avgConf: conf,
+          gap,
+          avgTime: time,
+          blindspots,
+          byDiff,
+          tag,
+          priorityScore
+        };
+      });
+
+      return {
+        total,
+        records,
+        correctCount,
+        accuracy,
+        totalTimeSec,
+        avgTimeSec,
+        avgConf,
+        ratedCount: ratedRecords.length,
+        confGap,
+        quads,
+        difficultyStats,
+        slowestTop3,
+        slowestTop5Ids,
+        carelessWrong,
+        chapterStats
+      };
+    }
+
+    // =====================================================================
+    // 渲染交卷後分析儀表板
+    // =====================================================================
+    function renderResultsDashboard(data) {
+      // 標頭資訊
+      document.getElementById('res-header-student').textContent = examState.studentName;
+      document.getElementById('res-header-date').textContent = examState.examDate;
+      document.getElementById('print-student-name').textContent = examState.studentName;
+      document.getElementById('print-exam-date').textContent = examState.examDate;
+
+      // 1. KPI Cards
+      document.getElementById('kpi-accuracy').textContent = `${data.accuracy.toFixed(1)}%`;
+      document.getElementById('kpi-accuracy-sub').textContent = `答對 ${data.correctCount} / ${data.total} 題`;
+
+      document.getElementById('kpi-total-time').textContent = formatChineseDuration(data.totalTimeSec);
+      document.getElementById('kpi-avg-time').textContent = `平均每題 ${data.avgTimeSec.toFixed(1)} 秒`;
+
+      document.getElementById('kpi-avg-conf').textContent = `${data.avgConf.toFixed(1)}%`;
+      const gapSign = data.confGap >= 0 ? '+' : '';
+      document.getElementById('kpi-conf-sub').textContent = `與正確率差距 ${gapSign}${data.confGap.toFixed(1)}%（已評 ${data.ratedCount}/${data.total} 題）`;
+
+      const calBadge = document.getElementById('kpi-calibration-badge');
+      if (Math.abs(data.confGap) <= 8) {
+        calBadge.textContent = '自我評估精準';
+        calBadge.className = 'px-2 py-0.5 rounded bg-emerald-50 text-emerald-700';
+      } else if (data.confGap > 8) {
+        calBadge.textContent = '略顯過度自信';
+        calBadge.className = 'px-2 py-0.5 rounded bg-rose-50 text-rose-700';
+      } else {
+        calBadge.textContent = '偏保守謙虛';
+        calBadge.className = 'px-2 py-0.5 rounded bg-sky-50 text-sky-700';
+      }
+
+      document.getElementById('kpi-blindspot-count').textContent = `${data.quads.blindspot.length} 題`;
+
+      // 2. 家長診斷總評敘述
+      renderParentNarrative(data);
+
+      // 3. 難易度分析表與 SVG 長條圖
+      renderDifficultySection(data.difficultyStats);
+
+      // 4. 四象限盲點矩陣
+      renderQuadrants(data.quads);
+
+      // 5. 時間洞察
+      renderTimeInsights(data);
+
+      // 6. Tab 2: 章節深度分析圖表與明細表
+      renderChapterTab(data.chapterStats);
+
+      // 7. Tab 3: 一題一題回顧初始化
+      initReviewTab(data);
+    }
+
+    function renderParentNarrative(data) {
+      const box = document.getElementById('parent-narrative-box');
+
+      // 1) 整體程度定位
+      let levelEval = '';
+      if (data.accuracy >= 85) {
+        levelEval = `本次測驗整體正確率達 <strong>${data.accuracy.toFixed(1)}%</strong>（答對 ${data.correctCount}/${data.total} 題），顯示「${escapeHtml(examState.studentName)}」具備優秀的會計基礎與觀念統整力，可進一步挑戰統測歷屆綜合計算題以衝刺滿分。`;
+      } else if (data.accuracy >= 65) {
+        levelEval = `本次測驗整體正確率為 <strong>${data.accuracy.toFixed(1)}%</strong>（答對 ${data.correctCount}/${data.total} 題），核心基礎觀念已具備一定水準，但部分進階變化題與跨單元綜合題仍有失分空間，透過針對性檢討可快速拉升成績。`;
+      } else {
+        levelEval = `本次測驗整體正確率為 <strong>${data.accuracy.toFixed(1)}%</strong>（答對 ${data.correctCount}/${data.total} 題），反映出部分會計基本法則、分錄邏輯或期末調整觀念尚未完全穩固，建議先從基礎定義與標準分錄逐步建立信心。`;
+      }
+
+      // 2) 優勢章節
+      const strongChapters = data.chapterStats.filter(c => c.accuracy >= 80);
+      const strongText = strongChapters.length > 0
+        ? `表現最穩健的單元為 <strong>${strongChapters.map(c => c.chapter).join('、')}</strong>（正確率皆達 80% 以上），這些章節的會計邏輯清楚，可作為後續延伸學習的穩固基石。`
+        : `目前各章節正確率較為平均，尚未出現明顯拉開差距的強項單元，建議先從「會計基本概念」、「分錄與日記簿」等基礎單元建立穩定滿分區。`;
+
+      // 3) 優先補強章節排序
+      const weakSorted = [...data.chapterStats]
+        .filter(c => c.accuracy < 100 || c.blindspots > 0)
+        .sort((a, b) => a.priorityScore - b.priorityScore)
+        .slice(0, 3);
+
+      const weakText = weakSorted.length > 0
+        ? `建議接下來家教課程優先補強以下單元：<strong>${weakSorted.map(c => `${c.chapter}（正確率 ${c.accuracy.toFixed(0)}%）`).join('、')}</strong>。${data.quads.blindspot.length > 0 ? `特別需優先釐清「高信心卻答錯」的 ${data.quads.blindspot.length} 題觀念誤區。` : ''}`
+        : `本次測驗所有章節皆全數答對且無觀念盲點，表現非常出色！`;
+
+      // 4) 應試習慣與信心校準
+      let habitText = '';
+      if (data.confGap > 8) {
+        habitText = `學生平均信心（${data.avgConf.toFixed(1)}%）高於實際正確率（${data.accuracy.toFixed(1)}%），作答時容易對「陷阱條件」（如進貨折讓已計入淨額、零稅率與免稅差異）過度樂觀，建議訓練「畫出關鍵字」與「驗算借貸平衡」的習慣。`;
+      } else if (data.confGap < -8) {
+        habitText = `學生平均信心（${data.avgConf.toFixed(1)}%）低於實際正確率（${data.accuracy.toFixed(1)}%），共出現 ${data.quads.lucky.length} 題「沒把握卻答對」的題目，顯示實際理解力比自己想像得更好，只需多練習建立解題自信即可。`;
+      } else {
+        habitText = `學生的自我評估相當準確（信心與正確率落差僅 ${Math.abs(data.confGap).toFixed(1)}%），能清楚分辨自己「確定會」與「不確定」的題目，這在考場時間分配上是極佳的優勢。`;
+      }
+
+      box.innerHTML = `
+        <div class="bg-white/10 rounded-2xl p-4 border border-white/10">
+          <h4 class="font-bold text-amber-300 text-xs uppercase tracking-wider mb-1.5">1. 整體程度定位</h4>
+          <p class="text-slate-100">${levelEval}</p>
+        </div>
+        <div class="bg-white/10 rounded-2xl p-4 border border-white/10">
+          <h4 class="font-bold text-emerald-300 text-xs uppercase tracking-wider mb-1.5">2. 優勢掌握章節</h4>
+          <p class="text-slate-100">${strongText}</p>
+        </div>
+        <div class="bg-white/10 rounded-2xl p-4 border border-white/10">
+          <h4 class="font-bold text-rose-300 text-xs uppercase tracking-wider mb-1.5">3. 優先補強順序</h4>
+          <p class="text-slate-100">${weakText}</p>
+        </div>
+        <div class="bg-white/10 rounded-2xl p-4 border border-white/10">
+          <h4 class="font-bold text-sky-300 text-xs uppercase tracking-wider mb-1.5">4. 應試習慣與信心校準</h4>
+          <p class="text-slate-100">${habitText}</p>
+        </div>
+      `;
+    }
+
+    function renderDifficultySection(diffStats) {
+      // SVG 群組長條圖
+      const svgBox = document.getElementById('difficulty-svg-container');
+      const w = 360, h = 210;
+      const padL = 38, padB = 34, padT = 20, padR = 16;
+      const plotW = w - padL - padR;
+      const plotH = h - padT - padB;
+
+      let barsHtml = '';
+      // 水平格線 (0%, 50%, 100%)
+      [0, 50, 100].forEach(pct => {
+        const y = padT + plotH - (pct / 100) * plotH;
+        barsHtml += `
+          <line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="#E2E8F0" stroke-dasharray="3,3" />
+          <text x="${padL - 6}" y="${y + 4}" text-anchor="end" font-size="10" fill="#64748B" font-weight="600">${pct}%</text>
+        `;
+      });
+
+      const groupW = plotW / 3;
+      const barW = 24;
+
+      diffStats.forEach((d, i) => {
+        const cx = padL + groupW * i + groupW / 2;
+        const accH = (d.accuracy / 100) * plotH;
+        const confH = (d.avgConf / 100) * plotH;
+
+        const accY = padT + plotH - accH;
+        const confY = padT + plotH - confH;
+
+        barsHtml += `
+          <!-- 正確率長條 -->
+          <rect x="${cx - barW - 3}" y="${accY}" width="${barW}" height="${Math.max(2, accH)}" rx="4" fill="#1E3A8A" />
+          <text x="${cx - barW / 2 - 3}" y="${accY - 5}" text-anchor="middle" font-size="10" font-weight="700" fill="#1E3A8A">${d.accuracy.toFixed(0)}%</text>
+
+          <!-- 平均信心長條 -->
+          <rect x="${cx + 3}" y="${confY}" width="${barW}" height="${Math.max(2, confH)}" rx="4" fill="#F59E0B" />
+          <text x="${cx + barW / 2 + 3}" y="${confY - 5}" text-anchor="middle" font-size="10" font-weight="700" fill="#B45309">${d.avgConf.toFixed(0)}%</text>
+
+          <!-- X 軸標籤 -->
+          <text x="${cx}" y="${h - 10}" text-anchor="middle" font-size="12" font-weight="800" fill="#0F172A">難度：${d.level}</text>
+        `;
+      });
+
+      svgBox.innerHTML = `
+        <svg viewBox="0 0 ${w} ${h}" class="w-full h-auto">
+          ${barsHtml}
+        </svg>
+      `;
+
+      // 數據表格
+      const tbody = document.getElementById('difficulty-table-body');
+      tbody.innerHTML = diffStats.map(d => {
+        const badgeMap = {
+          '低': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+          '中': 'bg-amber-50 text-amber-800 border-amber-200',
+          '高': 'bg-rose-50 text-rose-700 border-rose-200'
+        };
+        let comment = '表現穩健';
+        if (d.count === 0) comment = '無此難度題目';
+        else if (d.accuracy >= 80) comment = '✅ 掌握度佳';
+        else if (d.avgConf - d.accuracy > 15) comment = '🚨 易誤入陷阱';
+        else if (d.accuracy < 50) comment = '⚠️ 需重點加強';
+        else comment = '📌 仍有進步空間';
+
+        return `
+          <tr>
+            <td class="py-3 px-3">
+              <span class="px-2.5 py-1 rounded-lg text-xs font-extrabold border ${badgeMap[d.level]}">難度：${d.level}</span>
+            </td>
+            <td class="py-3 px-3 text-center font-bold text-slate-700">${d.correct} / ${d.count}</td>
+            <td class="py-3 px-3 text-right font-extrabold text-blue-900">${d.accuracy.toFixed(1)}%</td>
+            <td class="py-3 px-3 text-right font-bold text-amber-700">${d.avgConf.toFixed(1)}%</td>
+            <td class="py-3 px-3 text-right text-slate-600">${d.avgTime.toFixed(1)} 秒</td>
+            <td class="py-3 px-3 text-xs font-semibold text-slate-700">${comment}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderQuadrants(quads) {
+      const renderPills = (list, btnClass, emptyText) => {
+        if (list.length === 0) {
+          return `<span class="text-xs text-slate-400 italic">${emptyText}</span>`;
+        }
+        return list.map(r => `
+          <button
+            type="button"
+            onclick="jumpToReviewQuestion(${r.id})"
+            class="px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${btnClass}"
+            title="點擊查看第 ${r.id} 題詳解（信心 ${r.confidence}%｜耗時 ${r.timeSec}秒）"
+          >
+            Q${r.id} (${r.chapter.split('、')[0]}・${r.confidence}%)
+          </button>
+        `).join('');
+      };
+
+      document.getElementById('quad-1-count').textContent = `${quads.blindspot.length} 題`;
+      document.getElementById('quad-1-list').innerHTML = renderPills(
+        quads.blindspot,
+        'bg-rose-600 text-white hover:bg-rose-700 shadow-2xs',
+        '太棒了！沒有高信心答錯的盲點題目'
+      );
+
+      document.getElementById('quad-2-count').textContent = `${quads.mastered.length} 題`;
+      document.getElementById('quad-2-list').innerHTML = renderPills(
+        quads.mastered,
+        'bg-emerald-600/15 text-emerald-900 hover:bg-emerald-600 hover:text-white border border-emerald-300',
+        '尚無落入此區的題目'
+      );
+
+      document.getElementById('quad-3-count').textContent = `${quads.unknown.length} 題`;
+      document.getElementById('quad-3-list').innerHTML = renderPills(
+        quads.unknown,
+        'bg-slate-200 text-slate-800 hover:bg-slate-700 hover:text-white',
+        '沒有低信心答錯的題目'
+      );
+
+      document.getElementById('quad-4-count').textContent = `${quads.lucky.length} 題`;
+      document.getElementById('quad-4-list').innerHTML = renderPills(
+        quads.lucky,
+        'bg-amber-500/20 text-amber-900 hover:bg-amber-600 hover:text-white border border-amber-300',
+        '沒有低信心猜對的題目'
+      );
+    }
+
+    function renderTimeInsights(data) {
+      // Top 3 耗時最長
+      const slowBox = document.getElementById('time-slowest-list');
+      slowBox.innerHTML = data.slowestTop3.map((r, idx) => `
+        <div onclick="jumpToReviewQuestion(${r.id})" class="flex items-center justify-between gap-3 p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 transition cursor-pointer">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <span class="w-6 h-6 rounded-lg bg-slate-900 text-white text-xs font-extrabold flex items-center justify-center shrink-0">${idx + 1}</span>
+            <div class="truncate">
+              <div class="text-sm font-bold text-slate-900 truncate">第 ${r.id} 題｜${escapeHtml(r.chapter)}</div>
+              <div class="text-xs text-slate-500">難度：${r.difficulty}・信心 ${r.confidence}%</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="px-2.5 py-1 rounded-lg text-xs font-extrabold bg-blue-100 text-blue-900 tabular-nums">${r.timeSec} 秒</span>
+            <span class="px-2 py-1 rounded-lg text-xs font-bold ${r.isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">
+              ${r.isCorrect ? '答對' : '答錯'}
+            </span>
+          </div>
+        </div>
+      `).join('');
+
+      // 快速作答 (<15s) 卻答錯
+      const careBox = document.getElementById('time-careless-list');
+      if (data.carelessWrong.length === 0) {
+        careBox.innerHTML = `
+          <div class="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-sm text-emerald-800 font-semibold">
+            ✅ 表現穩定！本次沒有出現「作答未滿 15 秒就匆忙答錯」的粗心題目，審題節奏良好。
+          </div>
+        `;
+      } else {
+        careBox.innerHTML = data.carelessWrong.map(r => `
+          <div onclick="jumpToReviewQuestion(${r.id})" class="flex items-center justify-between gap-3 p-3 rounded-2xl bg-rose-50/70 hover:bg-rose-100/70 border border-rose-200 transition cursor-pointer">
+            <div class="truncate">
+              <div class="text-sm font-bold text-rose-950 truncate">第 ${r.id} 題｜${escapeHtml(r.chapter)}</div>
+              <div class="text-xs text-rose-700">僅花 ${r.timeSec} 秒即作答（信心 ${r.confidence}%）</div>
+            </div>
+            <span class="px-2.5 py-1 rounded-lg text-xs font-extrabold bg-rose-600 text-white shrink-0">
+              點擊檢討 →
+            </span>
+          </div>
+        `).join('');
+      }
+    }
+
+    // =====================================================================
+    // Tab 2: 各章節深度細分分析渲染
+    // =====================================================================
+    function renderChapterTab(chapterStats) {
+      // 1. 水平對照圖表
+      const chartContainer = document.getElementById('chapter-chart-container');
+      chartContainer.innerHTML = `
+        <div class="space-y-3.5 min-w-[540px]">
+          ${chapterStats.map(c => `
+            <div class="grid grid-cols-12 items-center gap-3">
+              <div class="col-span-4 text-xs sm:text-sm font-bold text-slate-800 truncate" title="${escapeHtml(c.chapter)}">
+                ${escapeHtml(c.chapter)} <span class="text-slate-400 font-normal">(${c.correct}/${c.count})</span>
+              </div>
+              <div class="col-span-8 space-y-1.5">
+                <!-- 答對率條 -->
+                <div class="flex items-center gap-2">
+                  <div class="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
+                    <div class="h-full bg-blue-900 rounded-full transition-all duration-500" style="width: ${c.accuracy}%"></div>
+                  </div>
+                  <span class="w-12 text-right text-xs font-extrabold text-blue-900 tabular-nums">${c.accuracy.toFixed(0)}%</span>
+                </div>
+                <!-- 平均信心條 -->
+                <div class="flex items-center gap-2">
+                  <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div class="h-full bg-amber-500 rounded-full transition-all duration-500" style="width: ${c.avgConf}%"></div>
+                  </div>
+                  <span class="w-12 text-right text-[11px] font-bold text-amber-700 tabular-nums">${c.avgConf.toFixed(0)}%</span>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+
+      // 2. 章節詳細拆解表格（含 低/中/高 正確率細分）
+      const tbody = document.getElementById('chapter-detail-tbody');
+      tbody.innerHTML = chapterStats.map(c => {
+        const gapSign = c.gap >= 0 ? '+' : '';
+        const gapColor = c.gap > 15 ? 'text-rose-600 font-extrabold' : (c.gap < -15 ? 'text-sky-700 font-bold' : 'text-slate-600');
+
+        const renderDiffPill = (label, obj) => {
+          if (!obj || obj.count === 0) {
+            return `<span class="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 text-slate-400 text-xs">${label}: —</span>`;
+          }
+          const pct = obj.accuracy.toFixed(0);
+          let colorCls = 'bg-emerald-50 text-emerald-800 border-emerald-200';
+          if (obj.accuracy === 0) colorCls = 'bg-rose-50 text-rose-700 border-rose-200';
+          else if (obj.accuracy < 100) colorCls = 'bg-amber-50 text-amber-800 border-amber-200';
+
+          return `<span class="inline-flex items-center px-2 py-0.5 rounded border text-xs font-bold ${colorCls}">
+            ${label}: ${pct}% (${obj.correct}/${obj.count})
+          </span>`;
+        };
+
+        return `
+          <tr class="hover:bg-slate-50/80 transition">
+            <td class="py-3.5 px-3 font-extrabold text-slate-900">
+              ${escapeHtml(c.chapter)}
+              <span class="block text-[11px] font-normal text-slate-400">共 ${c.count} 題</span>
+            </td>
+            <td class="py-3.5 px-3">
+              <div class="flex items-center justify-between text-xs font-extrabold text-slate-900 mb-1">
+                <span>${c.accuracy.toFixed(1)}%</span>
+                <span class="text-slate-500 font-semibold">${c.correct}/${c.count}</span>
+              </div>
+              <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div class="h-full ${c.accuracy >= 80 ? 'bg-emerald-600' : (c.accuracy >= 50 ? 'bg-blue-900' : 'bg-rose-600')} rounded-full" style="width: ${c.accuracy}%"></div>
+              </div>
+            </td>
+            <td class="py-3.5 px-3 text-right font-bold text-amber-700">${c.avgConf.toFixed(1)}%</td>
+            <td class="py-3.5 px-3 text-right ${gapColor}">${gapSign}${c.gap.toFixed(1)}%</td>
+            <td class="py-3.5 px-3 text-right text-slate-600">${c.avgTime.toFixed(1)} 秒</td>
+            <td class="py-3.5 px-3">
+              <div class="flex flex-wrap gap-1.5">
+                ${renderDiffPill('低', c.byDiff['低'])}
+                ${renderDiffPill('中', c.byDiff['中'])}
+                ${renderDiffPill('高', c.byDiff['高'])}
+              </div>
+            </td>
+            <td class="py-3.5 px-3">
+              <span class="inline-block px-2.5 py-1 rounded-lg text-xs font-extrabold border ${c.tag.cls}">
+                ${c.tag.text}
+              </span>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // =====================================================================
+    // Tab 3: 一題一題回顧與講解模式 (1-on-1 Guided Review)
+    // =====================================================================
+    function initReviewTab(data) {
+      document.getElementById('rf-count-all').textContent = data.total;
+      document.getElementById('rf-count-wrong').textContent = data.records.filter(r => !r.isCorrect).length;
+      document.getElementById('rf-count-blindspot').textContent = data.quads.blindspot.length;
+      document.getElementById('rf-count-lucky').textContent = data.quads.lucky.length;
+
+      // 填充章節下拉選單
+      const chSelect = document.getElementById('review-chapter-select');
+      chSelect.innerHTML = `<option value="all">全部章節 (${data.total} 題)</option>` +
+        data.chapterStats.map(c => `<option value="${escapeHtml(c.chapter)}">${escapeHtml(c.chapter)} (${c.correct}/${c.count})</option>`).join('');
+
+      reviewState.preset = 'all';
+      reviewState.chapter = 'all';
+      reviewState.difficulty = 'all';
+      reviewState.viewMode = 'single';
+      reviewState.singleIdx = 0;
+
+      applyReviewFilters();
+    }
+
+    function setReviewPreset(preset) {
+      reviewState.preset = preset;
+      document.querySelectorAll('.rfilter-btn').forEach(btn => {
+        if (btn.getAttribute('data-rfilter') === preset) {
+          btn.className = 'rfilter-btn px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-900 text-white transition cursor-pointer';
+        } else {
+          btn.className = 'rfilter-btn px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer';
+        }
+      });
+      applyReviewFilters();
+    }
+
+    function setReviewViewMode(mode) {
+      reviewState.viewMode = mode;
+      const btnSingle = document.getElementById('btn-mode-single');
+      const btnList = document.getElementById('btn-mode-list');
+
+      if (mode === 'single') {
+        btnSingle.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-900 shadow-xs transition cursor-pointer';
+        btnList.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 transition cursor-pointer';
+      } else {
+        btnList.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-900 shadow-xs transition cursor-pointer';
+        btnSingle.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 transition cursor-pointer';
+      }
+      renderReviewContent();
+    }
+
+    function applyReviewFilters() {
+      if (!computedAnalytics) return;
+      const chVal = document.getElementById('review-chapter-select').value;
+      const diffVal = document.getElementById('review-diff-select').value;
+      reviewState.chapter = chVal;
+      reviewState.difficulty = diffVal;
+
+      let list = [...computedAnalytics.records];
+
+      if (reviewState.preset === 'wrong') {
+        list = list.filter(r => !r.isCorrect);
+      } else if (reviewState.preset === 'blindspot') {
+        list = list.filter(r => r.quadrant === 'blindspot');
+      } else if (reviewState.preset === 'lucky') {
+        list = list.filter(r => r.quadrant === 'lucky');
+      } else if (reviewState.preset === 'slowest') {
+        list = list.filter(r => computedAnalytics.slowestTop5Ids.has(r.id)).sort((a, b) => b.timeSec - a.timeSec);
+      }
+
+      if (chVal !== 'all') {
+        list = list.filter(r => r.chapter === chVal);
+      }
+      if (diffVal !== 'all') {
+        list = list.filter(r => r.difficulty === diffVal);
+      }
+
+      reviewState.filteredRecords = list;
+      reviewState.singleIdx = 0;
+
+      document.getElementById('review-match-summary').textContent = `符合條件共 ${list.length} 題`;
+      renderReviewContent();
+    }
+
+    function stepReviewSingle(delta) {
+      const next = reviewState.singleIdx + delta;
+      if (next >= 0 && next < reviewState.filteredRecords.length) {
+        reviewState.singleIdx = next;
+        renderReviewContent();
+      }
+    }
+
+    function jumpToReviewSingle(idx) {
+      reviewState.singleIdx = idx;
+      renderReviewContent();
+    }
+
+    function jumpToReviewQuestion(questionId) {
+      switchResultTab(3);
+      // 重設篩選為全部題目並切換至單題講解模式，直接定位該題
+      document.getElementById('review-chapter-select').value = 'all';
+      document.getElementById('review-diff-select').value = 'all';
+      setReviewPreset('all');
+      setReviewViewMode('single');
+
+      const foundIdx = reviewState.filteredRecords.findIndex(r => r.id === questionId);
+      if (foundIdx !== -1) {
+        reviewState.singleIdx = foundIdx;
+        renderReviewContent();
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function renderReviewContent() {
+      const container = document.getElementById('review-cards-container');
+      const singleNavBar = document.getElementById('review-single-nav-bar');
+      const list = reviewState.filteredRecords;
+
+      if (list.length === 0) {
+        singleNavBar.classList.add('hidden');
+        container.innerHTML = `
+          <div class="bg-white rounded-3xl p-10 border border-slate-200 text-center">
+            <p class="text-base font-bold text-slate-700">目前篩選條件下沒有符合的題目 🎉</p>
+            <p class="text-xs text-slate-500 mt-1">請嘗試切換上方的快速篩選標籤或重設章節／難度條件。</p>
+          </div>
+        `;
+        return;
+      }
+
+      if (reviewState.viewMode === 'single') {
+        singleNavBar.classList.remove('hidden');
+        const idx = Math.min(reviewState.singleIdx, list.length - 1);
+        reviewState.singleIdx = idx;
+
+        document.getElementById('review-single-counter').textContent = `講解進度：第 ${idx + 1} / ${list.length} 題（原卷第 ${list[idx].id} 題）`;
+        document.getElementById('btn-review-prev').disabled = idx === 0;
+        document.getElementById('btn-review-next').disabled = idx === list.length - 1;
+
+        // 題號快速跳轉膠囊
+        document.getElementById('review-single-pills').innerHTML = list.map((r, i) => {
+          const isCur = i === idx;
+          let pillCls = r.isCorrect
+            ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+            : 'bg-rose-50 text-rose-800 border-rose-300';
+          if (isCur) pillCls += ' ring-2 ring-slate-900 font-extrabold scale-105';
+          return `<button type="button" onclick="jumpToReviewSingle(${i})" class="px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer tabular-nums ${pillCls}">Q${r.id}</button>`;
+        }).join('');
+
+        container.innerHTML = buildSingleReviewCardHTML(list[idx], true);
+      } else {
+        singleNavBar.classList.add('hidden');
+        container.innerHTML = list.map(r => buildSingleReviewCardHTML(r, false)).join('');
+      }
+    }
+
+    function buildSingleReviewCardHTML(r, isLargeMode) {
+      const quadBadgeMap = {
+        blindspot: { text: '🚨 高信心答錯（觀念盲點）', cls: 'bg-rose-100 text-rose-800 border-rose-300' },
+        mastered: { text: '✅ 高信心答對（穩固掌握）', cls: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
+        unknown: { text: '📚 低信心答錯（待學盲區）', cls: 'bg-slate-200 text-slate-800 border-slate-300' },
+        lucky: { text: '🍀 低信心答對（猜對／不穩）', cls: 'bg-amber-100 text-amber-800 border-amber-300' }
+      };
+
+      const diffColor = {
+        '低': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        '中': 'bg-amber-50 text-amber-800 border-amber-200',
+        '高': 'bg-rose-50 text-rose-700 border-rose-200'
+      }[r.difficulty] || 'bg-slate-100 text-slate-700';
+
+      const qInfo = quadBadgeMap[r.quadrant];
+      const stemSize = isLargeMode ? 'text-lg sm:text-xl' : 'text-base sm:text-lg';
+
+      const optionsHTML = ['A', 'B', 'C', 'D'].map(letter => {
+        const isCorrectOpt = r.answer === letter;
+        const isUserOpt = r.userAns === letter;
+
+        let cardCls = 'p-3.5 sm:p-4 rounded-2xl border flex items-start justify-between gap-3 ';
+        let badgeCls = 'w-7 h-7 rounded-lg font-extrabold text-xs flex items-center justify-center shrink-0 mt-0.5 ';
+        let rightTag = '';
+
+        if (isCorrectOpt) {
+          cardCls += 'bg-emerald-50/90 border-2 border-emerald-500 text-emerald-950';
+          badgeCls += 'bg-emerald-600 text-white';
+          rightTag = `<span class="px-2.5 py-0.5 rounded-lg text-xs font-extrabold bg-emerald-600 text-white shrink-0">✓ 正確答案</span>`;
+        } else if (isUserOpt && !isCorrectOpt) {
+          cardCls += 'bg-rose-50/90 border-2 border-rose-500 text-rose-950';
+          badgeCls += 'bg-rose-600 text-white';
+          rightTag = `<span class="px-2.5 py-0.5 rounded-lg text-xs font-extrabold bg-rose-600 text-white shrink-0">✗ 學生選擇</span>`;
+        } else {
+          cardCls += 'bg-white border-slate-200 text-slate-700';
+          badgeCls += 'bg-slate-100 text-slate-600';
+        }
+
+        return `
+          <div class="${cardCls}">
+            <div class="flex items-start gap-3">
+              <span class="${badgeCls}">${letter}</span>
+              <span class="text-sm sm:text-base font-medium leading-relaxed whitespace-pre-line pt-0.5">${escapeHtml(r.options[letter] || '')}</span>
+            </div>
+            ${rightTag}
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <article class="bg-white rounded-3xl p-5 sm:p-8 border ${r.isCorrect ? 'border-slate-200' : 'border-rose-200'} shadow-sm">
+          <!-- 頂部標籤列 -->
+          <div class="flex flex-wrap items-center justify-between gap-2 pb-4 mb-5 border-b border-slate-100">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="px-3 py-1 rounded-xl bg-slate-900 text-white font-extrabold text-sm tabular-nums">
+                第 ${r.id} 題
+              </span>
+              <span class="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-900 border border-blue-200 text-xs font-bold">
+                ${escapeHtml(r.chapter)}
+              </span>
+              <span class="px-2.5 py-1 rounded-lg border text-xs font-bold ${diffColor}">
+                難度：${r.difficulty}
+              </span>
+              <span class="px-2.5 py-1 rounded-lg border text-xs font-bold ${qInfo.cls}">
+                ${qInfo.text}
+              </span>
+            </div>
+
+            <!-- 學生作答數據摘要 -->
+            <div class="flex flex-wrap items-center gap-2 text-xs font-bold tabular-nums">
+              <span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700">
+                學生作答：${r.userAns ? `<strong class="${r.isCorrect ? 'text-emerald-700' : 'text-rose-700'}">${r.userAns}</strong>` : '<strong class="text-rose-600">未作答</strong>'}（正解：${r.answer}）
+              </span>
+              <span class="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200">
+                信心：${r.confidence}%${r.confTouched ? '' : ' (未調整)'}
+              </span>
+              <span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700">
+                耗時：${r.timeSec} 秒
+              </span>
+            </div>
+          </div>
+
+          <!-- 題幹 -->
+          <div class="text-slate-900 ${stemSize} font-medium leading-relaxed whitespace-pre-line mb-6">
+            ${escapeHtml(r.question)}
+          </div>
+
+          <!-- 四個選項對照 -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+            ${optionsHTML}
+          </div>
+
+          <!-- 教師講解重點與詳解框 -->
+          <div class="rounded-2xl bg-gradient-to-r from-slate-50 to-blue-50/60 border border-blue-200/80 p-4 sm:p-5">
+            <div class="flex items-center gap-2 font-extrabold text-blue-950 text-sm mb-2">
+              <span>💡</span>
+              <span>教師講解重點與解題解析</span>
+            </div>
+            <p class="text-slate-800 text-sm sm:text-base leading-relaxed whitespace-pre-line">
+              ${escapeHtml(r.explanation)}
+            </p>
+          </div>
+        </article>
+      `;
+    }
+
+    // =====================================================================
+    // 結果頁籤切換與安全性轉義
+    // =====================================================================
+    function switchResultTab(tabNum) {
+      [1, 2, 3].forEach(n => {
+        const panel = document.getElementById(`report-tab-${n}`);
+        const btn = document.getElementById(`tab-btn-${n}`);
+        if (n === tabNum) {
+          panel.classList.remove('hidden');
+          btn.className = 'px-4 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition cursor-pointer bg-white text-slate-900 shadow-sm';
+        } else {
+          panel.classList.add('hidden');
+          btn.className = 'px-4 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition cursor-pointer text-slate-300 hover:text-white hover:bg-slate-800';
+        }
+      });
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+  </script>
+</body>
+</html>
